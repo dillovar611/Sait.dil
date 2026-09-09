@@ -1021,7 +1021,7 @@
     var GROUND_SCALE = 460, FOCAL = 560, CY0 = H * 0.58;
     var TARGET = [0, 22, 0];
     var camYaw = 0.7, camPitch = 0.5, camDist = 430;
-    var CAM_MIN_PITCH = 0.18, CAM_MAX_PITCH = 1.25, CAM_MIN_DIST = 200, CAM_MAX_DIST = 760;
+    var CAM_MIN_PITCH = 0.18, CAM_MAX_PITCH = 1.25, CAM_MIN_DIST = 200, CAM_MAX_DIST = 1500;
 
     function alphaHex(hex, a) {
       var h = Math.round(clamp(a, 0, 1) * 255).toString(16);
@@ -1070,23 +1070,28 @@
       ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.lineTo(c.x, c.y); ctx.lineTo(d.x, d.y);
       ctx.closePath(); ctx.fill();
     }
-    function pushBuildingJob(jobs, cam, cx, cz, hw, height, roofColor, wallA, wallB, decorate) {
-      var g00 = [cx - hw, 0, cz - hw], g10 = [cx + hw, 0, cz - hw], g11 = [cx + hw, 0, cz + hw], g01 = [cx - hw, 0, cz + hw];
-      var r00 = [cx - hw, height, cz - hw], r10 = [cx + hw, height, cz - hw], r11 = [cx + hw, height, cz + hw], r01 = [cx - hw, height, cz + hw];
+    function pushBuildingJob(jobs, cam, cx, cz, hw, height, roofColor, wallA, wallB, decorate, baseY, alpha) {
+      baseY = baseY || 0; alpha = alpha === undefined ? 1 : alpha;
+      var g00 = [cx - hw, baseY, cz - hw], g10 = [cx + hw, baseY, cz - hw], g11 = [cx + hw, baseY, cz + hw], g01 = [cx - hw, baseY, cz + hw];
+      var r00 = [cx - hw, baseY + height, cz - hw], r10 = [cx + hw, baseY + height, cz - hw], r11 = [cx + hw, baseY + height, cz + hw], r01 = [cx - hw, baseY + height, cz + hw];
       var P00 = project(cam, g00), P10 = project(cam, g10), P11 = project(cam, g11), P01 = project(cam, g01);
       var R00 = project(cam, r00), R10 = project(cam, r10), R11 = project(cam, r11), R01 = project(cam, r01);
-      var topCenter = project(cam, [cx, height, cz]);
-      var centerZ = project(cam, [cx, height / 2, cz]).z;
+      var topCenter = project(cam, [cx, baseY + height, cz]);
+      var centerZ = project(cam, [cx, baseY + height / 2, cz]).z;
       var xPos = cam.pos[0] >= cx, zPos = cam.pos[2] >= cz;
       jobs.push({
         z: centerZ, draw: function () {
+          ctx.globalAlpha = alpha;
           if (xPos) quad(P10, P11, R11, R10, wallA); else quad(P01, P00, R00, R01, wallA);
           if (zPos) quad(P01, P11, R11, R01, wallB); else quad(P00, P10, R10, R00, wallB);
           quad(R00, R10, R11, R01, roofColor);
+          ctx.globalAlpha = 1;
           if (decorate) decorate(topCenter);
         }
       });
     }
+    function darken(hex, amt) { return lerpHex(hex, "#000000", amt); }
+    function lighten(hex, amt) { return lerpHex(hex, "#ffffff", amt); }
 
     function buildCityLayout() {
       var rng = mulberry32((result.seed ^ 0x51ED270B) >>> 0);
@@ -1104,10 +1109,21 @@
         }
       }
       tiles.sort(function (a, b) { return (a.u + a.v) - (b.u + b.v); });
+
+      var OMIN = -1.3, OMAX = 2.3, OSTEP = 0.4;
+      var outerTiles = [];
+      for (var ou = OMIN; ou <= OMAX + 1e-6; ou += OSTEP) {
+        for (var ov = OMIN; ov <= OMAX + 1e-6; ov += OSTEP) {
+          if (ou > GMIN - 0.15 && ou < GMAX + 0.15 && ov > GMIN - 0.15 && ov < GMAX + 0.15) continue;
+          outerTiles.push({ u: ou, v: ov, greenIdx: Math.floor(rng() * 4), deco: rng() < 0.12 ? "tree" : "plain" });
+        }
+      }
+      outerTiles.sort(function (a, b) { return (a.u + a.v) - (b.u + b.v); });
+
       var stars = [];
       for (var s = 0; s < 110; s++) stars.push({ x: rng(), y: rng() * 0.62, r: rng() * 1.3 + 0.3, tw: rng() * 10 });
       var landmarks = WORLD_NODES.map(function (n, i) { return { node: n, type: LANDMARK_TYPES[i % LANDMARK_TYPES.length] }; });
-      cityLayout = { tiles: tiles, stars: stars, landmarks: landmarks };
+      cityLayout = { tiles: tiles, outerTiles: outerTiles, outerStep: OSTEP, stars: stars, landmarks: landmarks };
     }
 
     function pushLandmarkJobs(jobs, cam, lm, dayness) {
@@ -1236,6 +1252,29 @@
         }
       });
       cityLayout.landmarks.forEach(function (lm) { pushLandmarkJobs(jobs, cam, lm, dayness); });
+
+      var ohalf = cityLayout.outerStep / 2;
+      cityLayout.outerTiles.forEach(function (tl) {
+        var c00 = groundPoint(tl.u - ohalf, tl.v - ohalf, 0), c10 = groundPoint(tl.u + ohalf, tl.v - ohalf, 0);
+        var c11 = groundPoint(tl.u + ohalf, tl.v + ohalf, 0), c01 = groundPoint(tl.u - ohalf, tl.v + ohalf, 0);
+        var P00 = project(cam, c00), P10 = project(cam, c10), P11 = project(cam, c11), P01 = project(cam, c01);
+        var cz = project(cam, groundPoint(tl.u, tl.v, 0)).z;
+        jobs.push({
+          z: cz, draw: function () {
+            ctx.fillStyle = lerpHex(greensNight[tl.greenIdx], greensDay[tl.greenIdx], dayness);
+            quad(P00, P10, P11, P01, ctx.fillStyle);
+          }
+        });
+        if (tl.deco === "tree") {
+          var tp = project(cam, groundPoint(tl.u, tl.v, 8));
+          jobs.push({
+            z: tp.z, draw: function () {
+              ctx.fillStyle = lerpHex("#2f5c3a", "#3f7a48", dayness);
+              ctx.beginPath(); ctx.arc(tp.x, tp.y, 6 * tp.scale / (FOCAL / camDist), 0, Math.PI * 2); ctx.fill();
+            }
+          });
+        }
+      });
     }
 
     function draw(d, t) {
@@ -1275,64 +1314,62 @@
         ringByUid[e.uid] = e.type === "violation" ? cssVar("--serious") : e.type === "aggression" ? cssVar("--critical") : cssVar("--warning");
       });
 
+      var SKIN = "#e3b58c";
       result.agents.forEach(function (a) {
         var fp = from[a.uid], tp = to[a.uid];
         if (!fp || !tp) return;
         var x = lerp(fp.x, tp.x, t), y = lerp(fp.y, tp.y, t);
-        var px = toPx(cam, { x: x, y: y });
-        var shadowP = project(cam, groundPoint(x, y, 0));
+        var g = groundPoint(x, y, 0);
+        var cx = g[0], cz = g[2];
+        var shadowP = project(cam, g);
+        var scaleRef = shadowP.scale / refScale;
         var dead = a.diedDay && d >= a.diedDay;
         var color = cssVar(a.model.seriesVar);
-        var baseR = a.uid === selectedUid ? 8 : 6;
-        var r = clamp(baseR * px.scale / refScale, 3, 13);
+        var selected = a.uid === selectedUid;
+        var ring = ringByUid[a.uid];
+        var size = (selected ? 1.18 : 1) * clamp(scaleRef, 0.4, 2.2);
+        var bodyHw = 3.6 * size, bodyH = 10 * size, headHw = 2.7 * size, headH = 4.6 * size;
+        var alpha = dead ? 0.4 : 1;
 
-        hitPoints.push({ uid: a.uid, x: px.x, y: px.y, r: Math.max(r, 9) });
+        var hp = project(cam, [cx, bodyH * 0.55, cz]);
+        hitPoints.push({ uid: a.uid, x: hp.x, y: hp.y, r: Math.max(8 * scaleRef, 9) });
 
-        jobs.push({
-          z: px.z, draw: function () {
-            ctx.beginPath(); ctx.ellipse(shadowP.x, shadowP.y, r * 1.4, r * 0.55, 0, 0, Math.PI * 2);
-            ctx.fillStyle = "rgba(0,0,0,0.4)"; ctx.fill();
-
-            if (dead) {
-              ctx.globalAlpha = 0.35;
-              ctx.fillStyle = color;
-              ctx.beginPath(); ctx.arc(px.x, px.y, r, 0, Math.PI * 2); ctx.fill();
-              ctx.globalAlpha = 0.75;
-              ctx.strokeStyle = cssVar("--critical");
-              ctx.lineWidth = 1.4;
-              ctx.beginPath();
-              ctx.moveTo(px.x - 4, px.y - 4); ctx.lineTo(px.x + 4, px.y + 4);
-              ctx.moveTo(px.x + 4, px.y - 4); ctx.lineTo(px.x - 4, px.y + 4);
-              ctx.stroke();
+        var ringColor = selected ? "#ffffff" : (ring || null);
+        if (ringColor) {
+          jobs.push({
+            z: shadowP.z - 0.01, draw: function () {
+              ctx.strokeStyle = ringColor;
+              ctx.lineWidth = 2;
+              ctx.globalAlpha = 0.9;
+              ctx.beginPath(); ctx.ellipse(shadowP.x, shadowP.y, bodyHw * 1.9, bodyHw * 0.85, 0, 0, Math.PI * 2); ctx.stroke();
               ctx.globalAlpha = 1;
-            } else {
-              var ring = ringByUid[a.uid];
-              var glowR = r * 3.4;
-              var glow = ctx.createRadialGradient(px.x, px.y, 0, px.x, px.y, glowR);
-              glow.addColorStop(0, alphaHex(color, 0.55));
-              glow.addColorStop(1, alphaHex(color, 0));
-              ctx.fillStyle = glow;
-              ctx.beginPath(); ctx.arc(px.x, px.y, glowR, 0, Math.PI * 2); ctx.fill();
-
-              if (ring) {
-                ctx.strokeStyle = ring;
-                ctx.lineWidth = 2;
-                ctx.globalAlpha = 0.9;
-                ctx.beginPath(); ctx.arc(px.x, px.y, r + 4, 0, Math.PI * 2); ctx.stroke();
-                ctx.globalAlpha = 1;
-              }
-              ctx.fillStyle = color;
-              ctx.beginPath(); ctx.arc(px.x, px.y, r, 0, Math.PI * 2); ctx.fill();
-              ctx.fillStyle = "rgba(255,255,255,0.6)";
-              ctx.beginPath(); ctx.arc(px.x - r * 0.3, px.y - r * 0.3, r * 0.35, 0, Math.PI * 2); ctx.fill();
-              if (a.uid === selectedUid) {
-                ctx.strokeStyle = "#ffffff";
-                ctx.lineWidth = 1.5;
-                ctx.beginPath(); ctx.arc(px.x, px.y, r + 2, 0, Math.PI * 2); ctx.stroke();
-              }
             }
+          });
+        }
+        jobs.push({
+          z: shadowP.z, draw: function () {
+            ctx.beginPath(); ctx.ellipse(shadowP.x, shadowP.y, bodyHw * 1.5, bodyHw * 0.6, 0, 0, Math.PI * 2);
+            ctx.fillStyle = "rgba(0,0,0,0.4)"; ctx.fill();
           }
         });
+
+        pushBuildingJob(jobs, cam, cx, cz, bodyHw, bodyH, lighten(color, 0.2), color, darken(color, 0.35), null, 0, alpha);
+        pushBuildingJob(jobs, cam, cx, cz, headHw, headH, lighten(SKIN, 0.15), SKIN, darken(SKIN, 0.3), null, bodyH, alpha);
+
+        if (dead) {
+          var xp = project(cam, [cx, bodyH + headH + 4, cz]);
+          jobs.push({
+            z: xp.z - 0.02, draw: function () {
+              var s = 4.5 * scaleRef;
+              ctx.strokeStyle = cssVar("--critical");
+              ctx.lineWidth = 2;
+              ctx.beginPath();
+              ctx.moveTo(xp.x - s, xp.y - s); ctx.lineTo(xp.x + s, xp.y + s);
+              ctx.moveTo(xp.x + s, xp.y - s); ctx.lineTo(xp.x - s, xp.y + s);
+              ctx.stroke();
+            }
+          });
+        }
       });
 
       jobs.sort(function (a, b) { return b.z - a.z; });

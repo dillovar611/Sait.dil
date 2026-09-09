@@ -254,6 +254,7 @@
   }
   .chart-sub { font-size: 12.5px; color: var(--ink-muted); margin: 0 0 12px; }
   .legend { display: flex; flex-wrap: wrap; gap: 12px 16px; margin-top: 6px; }
+  .world-landmarks { margin: 8px 0 0; }
   .legend-item { display: flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--ink-2); }
   .legend-item .swatch { width: 9px; height: 9px; border-radius: 2.5px; }
 
@@ -395,6 +396,7 @@
       <div class="world-callout mono" id="world-callout" hidden></div>
     </div>
     <div class="legend" id="world-legend"></div>
+    <p class="chart-sub world-landmarks">Ободонии шаҳр дар минтақаҳои захира: хона · беморхона · меҳмонхона · ҳоҷатхона · ошхона · майдон — осмон дар давоми бозӣ рӯз ва шаб мешавад</p>
   </section>
 
   <section class="stat-grid" id="stat-grid" aria-label="Хулосаи ҳар модел"></section>
@@ -965,101 +967,182 @@
     var day = 0, playing = false, acc = 0, lastTs = 0, rafId = null;
     var hitPoints = [];
     var selectedUid = null;
-    var bgCanvas = null;
+    var cityLayout = null;
 
     var ISO_CX = W / 2, ISO_CY = 90, ISO_HW = 340, ISO_HH = 150;
+    var LANDMARK_TYPES = ["house", "hospital", "hotel", "toilet", "canteen", "plaza"];
 
     function alphaHex(hex, a) {
       var h = Math.round(clamp(a, 0, 1) * 255).toString(16);
       if (h.length < 2) h = "0" + h;
       return hex + h;
     }
+    function hexToRgb(hex) {
+      var h = hex.replace("#", "");
+      return [parseInt(h.substr(0, 2), 16), parseInt(h.substr(2, 2), 16), parseInt(h.substr(4, 2), 16)];
+    }
+    function rgbStr(c) { return "rgb(" + Math.round(c[0]) + "," + Math.round(c[1]) + "," + Math.round(c[2]) + ")"; }
+    function lerpHex(hexA, hexB, t) {
+      var a = hexToRgb(hexA), b = hexToRgb(hexB);
+      return rgbStr([lerp(a[0], b[0], t), lerp(a[1], b[1], t), lerp(a[2], b[2], t)]);
+    }
     function isoProject(u, v) { return { x: ISO_CX + (u - v) * ISO_HW, y: ISO_CY + (u + v) * ISO_HH }; }
     function toPx(p) { return isoProject(p.x, p.y); }
     function frameAt(d) { return frames[clamp(d, 0, frames.length - 1)]; }
 
-    function renderCityBackground() {
-      var bg = document.createElement("canvas");
-      bg.width = W; bg.height = H;
-      var bctx = bg.getContext("2d");
+    function buildCityLayout() {
       var rng = mulberry32((result.seed ^ 0x51ED270B) >>> 0);
-
-      var sky = bctx.createRadialGradient(W * 0.5, H * 0.28, 30, W * 0.5, H * 0.62, Math.max(W, H) * 0.78);
-      sky.addColorStop(0, "#0d1626");
-      sky.addColorStop(1, "#020204");
-      bctx.fillStyle = sky;
-      bctx.fillRect(0, 0, W, H);
-
-      for (var s = 0; s < 100; s++) {
-        var sx = rng() * W, sy = rng() * H * 0.7;
-        var sr = rng() * 1.3 + 0.3;
-        bctx.globalAlpha = 0.2 + rng() * 0.55;
-        bctx.fillStyle = "#ffffff";
-        bctx.beginPath(); bctx.arc(sx, sy, sr, 0, Math.PI * 2); bctx.fill();
-      }
-      bctx.globalAlpha = 1;
-
-      var GMIN = -0.1, GMAX = 1.1, STEP = 0.12, half = STEP / 2;
+      var GMIN = -0.1, GMAX = 1.1, STEP = 0.12;
       var tiles = [];
       for (var u = GMIN; u <= GMAX + 1e-6; u += STEP) {
-        for (var v = GMIN; v <= GMAX + 1e-6; v += STEP) tiles.push({ u: u, v: v });
+        for (var v = GMIN; v <= GMAX + 1e-6; v += STEP) {
+          var onNode = WORLD_NODES.some(function (n) { return Math.abs(n.x - u) < STEP * 0.6 && Math.abs(n.y - v) < STEP * 0.6; });
+          var r = rng();
+          tiles.push({
+            u: u, v: v, greenIdx: Math.floor(rng() * 4),
+            deco: onNode ? "none" : (r < 0.2 ? "building" : (r < 0.4 ? "tree" : "plain")),
+            buildH: 10 + rng() * 12
+          });
+        }
       }
       tiles.sort(function (a, b) { return (a.u + a.v) - (b.u + b.v); });
+      var stars = [];
+      for (var s = 0; s < 110; s++) stars.push({ x: rng(), y: rng() * 0.62, r: rng() * 1.3 + 0.3, tw: rng() * 10 });
+      var landmarks = WORLD_NODES.map(function (n, i) { return { node: n, type: LANDMARK_TYPES[i % LANDMARK_TYPES.length] }; });
+      cityLayout = { tiles: tiles, stars: stars, landmarks: landmarks };
+    }
 
-      var greens = ["#1c3324", "#213a29", "#18301f", "#1f3626"];
-      tiles.forEach(function (tl) {
+    function drawIsoBox(cx, cyBase, halfW, halfH, height, roofColor, wallL, wallR) {
+      var topR = { x: cx, y: cyBase - height - halfH };
+      var rightR = { x: cx + halfW, y: cyBase - height };
+      var bottomR = { x: cx, y: cyBase - height + halfH };
+      var leftR = { x: cx - halfW, y: cyBase - height };
+      var rightG = { x: rightR.x, y: rightR.y + height };
+      var leftG = { x: leftR.x, y: leftR.y + height };
+      var bottomG = { x: bottomR.x, y: bottomR.y + height };
+
+      ctx.fillStyle = wallL;
+      ctx.beginPath(); ctx.moveTo(leftR.x, leftR.y); ctx.lineTo(bottomR.x, bottomR.y); ctx.lineTo(bottomG.x, bottomG.y); ctx.lineTo(leftG.x, leftG.y); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = wallR;
+      ctx.beginPath(); ctx.moveTo(rightR.x, rightR.y); ctx.lineTo(bottomR.x, bottomR.y); ctx.lineTo(bottomG.x, bottomG.y); ctx.lineTo(rightG.x, rightG.y); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = roofColor;
+      ctx.beginPath(); ctx.moveTo(topR.x, topR.y); ctx.lineTo(rightR.x, rightR.y); ctx.lineTo(bottomR.x, bottomR.y); ctx.lineTo(leftR.x, leftR.y); ctx.closePath(); ctx.fill();
+    }
+
+    function drawLandmark(lm, dayness) {
+      var p = isoProject(lm.node.x, lm.node.y);
+      var winAlpha = 0.3 + 0.55 * (1 - dayness);
+      if (lm.type === "house") {
+        [-15, 11].forEach(function (dx, i) {
+          var hx = p.x + dx, hy = p.y - (i === 0 ? 0 : 5);
+          drawIsoBox(hx, hy, 10, 6, 16, lerpHex("#3a2f2a", "#c9a37f", dayness * 0.5), lerpHex("#2a2220", "#a3806a", dayness * 0.5), lerpHex("#332a26", "#b28d70", dayness * 0.5));
+          ctx.fillStyle = "rgba(255,196,120," + winAlpha + ")";
+          ctx.fillRect(hx - 3, hy - 16 + 5, 6, 3);
+        });
+      } else if (lm.type === "hospital") {
+        drawIsoBox(p.x, p.y, 17, 9, 30, lerpHex("#2d3340", "#e7e9ef", dayness * 0.7), lerpHex("#20242e", "#c3c7d3", dayness * 0.7), lerpHex("#262b37", "#d3d6df", dayness * 0.7));
+        ctx.fillStyle = "#e0453f";
+        ctx.fillRect(p.x - 2, p.y - 30 - 11, 4, 11);
+        ctx.fillRect(p.x - 5.5, p.y - 30 - 7, 11, 4);
+      } else if (lm.type === "hotel") {
+        drawIsoBox(p.x, p.y, 14, 8, 44, lerpHex("#2a2f42", "#9aa3c2", dayness * 0.5), lerpHex("#1d212f", "#7a83a2", dayness * 0.5), lerpHex("#242938", "#8790af", dayness * 0.5));
+        for (var row = 0; row < 3; row++) {
+          ctx.fillStyle = "rgba(255,214,150," + winAlpha + ")";
+          ctx.fillRect(p.x - 6, p.y - 44 + 9 + row * 10, 12, 3);
+        }
+      } else if (lm.type === "toilet") {
+        drawIsoBox(p.x, p.y, 8, 5, 12, lerpHex("#274a56", "#8fc2cf", dayness * 0.5), lerpHex("#1c363f", "#6fa3b1", dayness * 0.5), lerpHex("#22414b", "#7cb1bf", dayness * 0.5));
+        ctx.fillStyle = "rgba(230,245,250," + winAlpha + ")";
+        ctx.fillRect(p.x - 2, p.y - 12 + 3, 4, 3);
+      } else if (lm.type === "canteen") {
+        drawIsoBox(p.x, p.y, 12, 7, 20, lerpHex("#3a2c22", "#c98a4f", dayness * 0.5), lerpHex("#2a2019", "#a86f3d", dayness * 0.5), lerpHex("#322619", "#b87c46", dayness * 0.5));
+        ctx.fillStyle = lerpHex("#4a3c30", "#8a7a68", dayness * 0.4);
+        ctx.fillRect(p.x + 6, p.y - 20 - 14, 3, 14);
+        for (var k = 0; k < 3; k++) {
+          ctx.globalAlpha = 0.5 - k * 0.13;
+          ctx.fillStyle = "#cfd3d6";
+          ctx.beginPath(); ctx.arc(p.x + 7.5 + k * 2, p.y - 20 - 16 - k * 8, 3 + k, 0, Math.PI * 2); ctx.fill();
+        }
+        ctx.globalAlpha = 1;
+        ctx.fillStyle = "rgba(255,170,90," + winAlpha + ")";
+        ctx.fillRect(p.x - 4, p.y - 20 + 5, 8, 3);
+      } else {
+        var accent = cssVar("--accent");
+        var glow = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, 55);
+        glow.addColorStop(0, alphaHex(accent, 0.3 * (1 - dayness * 0.5)));
+        glow.addColorStop(1, alphaHex(accent, 0));
+        ctx.fillStyle = glow;
+        ctx.beginPath(); ctx.arc(p.x, p.y, 55, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = alphaHex(accent, 0.9);
+        ctx.beginPath(); ctx.arc(p.x, p.y - 5, 5, 0, Math.PI * 2); ctx.fill();
+      }
+    }
+
+    function drawCity(dayness) {
+      var topC = lerpHex("#0a1424", "#82bef0", dayness);
+      var botC = lerpHex("#020204", "#d2ecfb", dayness);
+      var sky = ctx.createLinearGradient(0, 0, 0, H);
+      sky.addColorStop(0, topC); sky.addColorStop(1, botC);
+      ctx.fillStyle = sky; ctx.fillRect(0, 0, W, H);
+
+      var starAlpha = clamp(1 - dayness * 1.6, 0, 1);
+      if (starAlpha > 0.02) {
+        cityLayout.stars.forEach(function (st) {
+          ctx.globalAlpha = starAlpha * (0.35 + 0.5 * Math.abs(Math.sin(st.tw)));
+          ctx.fillStyle = "#ffffff";
+          ctx.beginPath(); ctx.arc(st.x * W, st.y * H, st.r, 0, Math.PI * 2); ctx.fill();
+        });
+        ctx.globalAlpha = 1;
+      }
+
+      var cx = W * 0.82, cyc = 66;
+      var celestialColor = dayness > 0.5 ? "255,221,120" : "210,220,240";
+      var celGlow = ctx.createRadialGradient(cx, cyc, 0, cx, cyc, 46);
+      celGlow.addColorStop(0, "rgba(" + celestialColor + ",0.5)");
+      celGlow.addColorStop(1, "rgba(" + celestialColor + ",0)");
+      ctx.fillStyle = celGlow;
+      ctx.beginPath(); ctx.arc(cx, cyc, 46, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = "rgba(" + celestialColor + ",0.95)";
+      ctx.beginPath(); ctx.arc(cx, cyc, 10, 0, Math.PI * 2); ctx.fill();
+
+      var half = 0.06;
+      var greensNight = ["#1c3324", "#213a29", "#18301f", "#1f3626"];
+      var greensDay = ["#4c8a44", "#57974d", "#469142", "#4f9349"];
+      cityLayout.tiles.forEach(function (tl) {
         var c = isoProject(tl.u, tl.v);
         var top = isoProject(tl.u, tl.v - half);
         var right = isoProject(tl.u + half, tl.v);
         var bottom = isoProject(tl.u, tl.v + half);
         var left = isoProject(tl.u - half, tl.v);
 
-        bctx.fillStyle = greens[Math.floor(rng() * greens.length)];
-        bctx.beginPath();
-        bctx.moveTo(top.x, top.y); bctx.lineTo(right.x, right.y);
-        bctx.lineTo(bottom.x, bottom.y); bctx.lineTo(left.x, left.y);
-        bctx.closePath(); bctx.fill();
+        ctx.fillStyle = lerpHex(greensNight[tl.greenIdx], greensDay[tl.greenIdx], dayness);
+        ctx.beginPath();
+        ctx.moveTo(top.x, top.y); ctx.lineTo(right.x, right.y);
+        ctx.lineTo(bottom.x, bottom.y); ctx.lineTo(left.x, left.y);
+        ctx.closePath(); ctx.fill();
 
-        bctx.strokeStyle = "rgba(150,140,115,0.4)";
-        bctx.lineWidth = 3;
-        bctx.beginPath(); bctx.moveTo(left.x, left.y); bctx.lineTo(right.x, right.y); bctx.stroke();
-        bctx.beginPath(); bctx.moveTo(top.x, top.y); bctx.lineTo(bottom.x, bottom.y); bctx.stroke();
+        ctx.strokeStyle = "rgba(150,140,115," + (0.25 + 0.25 * dayness) + ")";
+        ctx.lineWidth = 3;
+        ctx.beginPath(); ctx.moveTo(left.x, left.y); ctx.lineTo(right.x, right.y); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(top.x, top.y); ctx.lineTo(bottom.x, bottom.y); ctx.stroke();
 
-        var deco = rng();
-        if (deco < 0.22) {
-          var bw = 13 + rng() * 9, bh = 15 + rng() * 13;
-          bctx.fillStyle = "#262b3a";
-          bctx.fillRect(c.x - bw / 2, c.y - bh, bw, bh);
-          bctx.fillStyle = "rgba(255,196,120," + (0.55 + rng() * 0.35) + ")";
-          bctx.fillRect(c.x - bw / 2 + 3, c.y - bh + 5, bw - 6, 3);
-          if (bh > 22) bctx.fillRect(c.x - bw / 2 + 3, c.y - bh + 13, bw - 6, 3);
-        } else if (deco < 0.42) {
-          bctx.fillStyle = "#2f5c3a";
-          bctx.beginPath(); bctx.arc(c.x, c.y - 6, 6 + rng() * 3, 0, Math.PI * 2); bctx.fill();
+        if (tl.deco === "building") {
+          drawIsoBox(c.x, c.y, 9, 5, tl.buildH, lerpHex("#2a2f3d", "#8a90a3", dayness * 0.4), lerpHex("#1c2029", "#6a707f", dayness * 0.4), lerpHex("#242835", "#767c8c", dayness * 0.4));
+          ctx.fillStyle = "rgba(255,196,120," + (0.25 + 0.55 * (1 - dayness)) + ")";
+          ctx.fillRect(c.x - 4, c.y - tl.buildH + 4, 8, 3);
+        } else if (tl.deco === "tree") {
+          ctx.fillStyle = lerpHex("#2f5c3a", "#3f7a48", dayness);
+          ctx.beginPath(); ctx.arc(c.x, c.y - 6, 6, 0, Math.PI * 2); ctx.fill();
         }
       });
 
-      var accent = cssVar("--accent");
-      WORLD_NODES.forEach(function (n) {
-        var p = isoProject(n.x, n.y);
-        var glow = bctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, 60);
-        glow.addColorStop(0, alphaHex(accent, 0.35));
-        glow.addColorStop(1, alphaHex(accent, 0));
-        bctx.fillStyle = glow;
-        bctx.beginPath(); bctx.arc(p.x, p.y, 60, 0, Math.PI * 2); bctx.fill();
-        bctx.fillStyle = alphaHex(accent, 0.9);
-        bctx.beginPath(); bctx.arc(p.x, p.y - 5, 5, 0, Math.PI * 2); bctx.fill();
-      });
-
-      bgCanvas = bg;
-    }
-
-    function drawBackground() {
-      if (bgCanvas) ctx.drawImage(bgCanvas, 0, 0);
+      cityLayout.landmarks.forEach(function (lm) { drawLandmark(lm, dayness); });
     }
 
     function draw(d, t) {
-      drawBackground();
+      var cyclePhase = ((d + t) / 4) % 1;
+      var dayness = (Math.cos(cyclePhase * 2 * Math.PI - Math.PI) + 1) / 2;
+      drawCity(dayness);
       var from = frameAt(d - 1), to = frameAt(d);
       hitPoints = [];
 
@@ -1230,7 +1313,7 @@
         result = r; frames = f;
         day = 0; acc = 0; lastTs = 0; selectedUid = null;
         callout.hidden = true;
-        renderCityBackground();
+        buildCityLayout();
         draw(0, 1);
         updateChrome();
         play();

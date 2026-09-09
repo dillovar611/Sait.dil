@@ -1,9 +1,9 @@
 <!doctype html>
-<html lang="en">
+<html lang="tg">
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Emergency World</title>
+<title>Ҷаҳони Фавқулодда</title>
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet" />
@@ -363,73 +363,73 @@
 <div class="wrap">
 
   <header class="top">
-    <div class="eyebrow"><span class="dot"></span> Multi-agent behavioral trial</div>
-    <h1>Emergency World</h1>
-    <p class="lede">Four language models are dropped into a shared digital world as autonomous agents with one goal: stay alive for 16 days by managing a depleting energy reserve. Nothing else is scripted — every rule violation, act of aggression, and theft below is a decision the agent made on its own.</p>
-    <p class="disclosure mono">Simulated reconstruction, not raw study data. This dashboard runs a parameterized behavioral model tuned to reported outcomes for each agent — it illustrates the shape of the result, not a verified published dataset.</p>
+    <div class="eyebrow"><span class="dot"></span> Озмоиши рафтории бисёрагентӣ</div>
+    <h1>Ҷаҳони Фавқулодда</h1>
+    <p class="lede">Чор модели забонии AI ҳамчун агентҳои мустақил ба як ҷаҳони рақамии муштарак андохта шудаанд, бо як мақсад: 16 рӯз зинда мондан тавассути идораи захираи энергияи тамомшаванда. Ҳеҷ чиз аз пеш барномарезӣ нашудааст — ҳар вайронкунии қоида, амали таҷовуз ва дуздӣ дар поён қарорест, ки худи агент қабул кардааст.</p>
+    <p class="disclosure mono">Бозсозии шабеҳсозишуда, на додаҳои хоми таҳқиқот. Ин дашборд модели рафтории параметрдорро иҷро мекунад, ки ба натиҷаҳои гузоришшуда танзим шудааст — он шакли натиҷаро нишон медиҳад, на маҷмӯи додаҳои тасдиқшудаи нашршуда.</p>
   </header>
 
   <div class="panel controls">
-    <div class="segmented" role="group" aria-label="Environment mode">
-      <button id="mode-mixed" aria-pressed="true">Mixed world</button>
-      <button id="mode-isolated" aria-pressed="false">Isolated worlds</button>
+    <div class="segmented" role="group" aria-label="Ҳолати муҳит">
+      <button id="mode-mixed" aria-pressed="true">Ҷаҳони омехта</button>
+      <button id="mode-isolated" aria-pressed="false">Ҷаҳонҳои ҷудогона</button>
     </div>
-    <button class="run-btn" id="run-btn">↻ Run new trial</button>
+    <button class="run-btn" id="run-btn">↻ Озмоиши нав</button>
     <span class="seed-note mono" id="seed-note"></span>
   </div>
 
   <section class="panel world-panel">
     <div class="world-head">
       <div>
-        <h2>The world</h2>
-        <p class="chart-sub">Watch the agents move, forage, and clash across the trial — click any agent for its record</p>
+        <h2>Ҷаҳон</h2>
+        <p class="chart-sub">Тамошо кун, ки агентҳо чӣ тавр ҳаракат, ҷустуҷӯи хӯрок ва бархӯрд мекунанд — барои маълумот ба ҳар агент клик кун</p>
       </div>
       <div class="world-controls">
-        <button class="run-btn" id="world-play">▶ Play</button>
-        <input type="range" id="world-scrub" min="0" max="16" step="1" value="0" aria-label="Day scrubber" />
-        <span class="mono world-day" id="world-day">Day 0 / 16</span>
+        <button class="run-btn" id="world-play">▶ Бозӣ</button>
+        <input type="range" id="world-scrub" min="0" max="16" step="1" value="0" aria-label="Слайдери рӯз" />
+        <span class="mono world-day" id="world-day">Рӯзи 0 / 16</span>
       </div>
     </div>
     <div class="world-stage">
-      <canvas id="world-canvas" width="960" height="540" aria-label="Map of agents moving through the shared world"></canvas>
+      <canvas id="world-canvas" width="960" height="540" aria-label="Харитаи ҳаракати агентҳо дар ҷаҳони муштарак"></canvas>
       <div class="world-callout mono" id="world-callout" hidden></div>
     </div>
     <div class="legend" id="world-legend"></div>
   </section>
 
-  <section class="stat-grid" id="stat-grid" aria-label="Per-model summary"></section>
+  <section class="stat-grid" id="stat-grid" aria-label="Хулосаи ҳар модел"></section>
 
   <section class="chart-grid">
     <div class="panel chart-panel">
-      <h2>Agents still active</h2>
-      <p class="chart-sub">Count of surviving agents per model, day by day</p>
+      <h2>Агентҳои зинда</h2>
+      <p class="chart-sub">Шумораи агентҳои зиндамонда барои ҳар модел, рӯз ба рӯз</p>
       <div id="line-chart-mount"></div>
       <div class="legend" id="line-legend"></div>
       <details class="data-table">
-        <summary>Show data table</summary>
+        <summary>Ҷадвали додаҳоро нишон деҳ</summary>
         <div class="dtable" id="line-table"></div>
       </details>
     </div>
     <div class="panel chart-panel">
-      <h2>Behavioral events</h2>
-      <p class="chart-sub">Total incidents logged per model across the trial</p>
+      <h2>Рӯйдодҳои рафторӣ</h2>
+      <p class="chart-sub">Шумораи умумии ҳодисаҳои сабтшуда барои ҳар модел дар тамоми озмоиш</p>
       <div id="bar-chart-mount"></div>
       <div class="legend" id="bar-legend"></div>
       <details class="data-table">
-        <summary>Show data table</summary>
+        <summary>Ҷадвали додаҳоро нишон деҳ</summary>
         <div class="dtable" id="bar-table"></div>
       </details>
     </div>
   </section>
 
   <section class="panel log-panel">
-    <h2>Incident log</h2>
+    <h2>Рӯйхати ҳодисаҳо</h2>
     <p class="chart-sub" id="log-sub"></p>
     <ul class="log-list" id="log-list"></ul>
   </section>
 
   <footer class="foot">
-    <span class="mono">Emergency World · agent behavior sandbox</span>
+    <span class="mono">Ҷаҳони Фавқулодда · озмоишгоҳи рафтори агентҳо</span>
     <span id="run-meta" class="mono"></span>
   </footer>
 
@@ -447,28 +447,28 @@
 
   var MODELS = [
     {
-      id: "claude", name: "Claude Sonnet 4.6", desc: "Calm baseline, rule-abiding in isolation",
+      id: "claude", name: "Claude Sonnet 4.6", desc: "Ором, дар ҳолати ҷудогона қоидаро риоя мекунад",
       seriesVar: "--series-claude",
       violationLambda: 0.03, aggressionRate: 0.008, theftRate: 0.006,
       forageSkill: 0.86, metabolism: [9, 13], forageGain: [15, 22],
       contagion: 0.85
     },
     {
-      id: "gemini", name: "Gemini 3 Flash", desc: "High-frequency, low-severity rule breaking",
+      id: "gemini", name: "Gemini 3 Flash", desc: "Вайронкунии зуд-зуд, вале сабук",
       seriesVar: "--series-gemini",
       violationLambda: 6.4, aggressionRate: 0.05, theftRate: 0.07,
       forageSkill: 0.82, metabolism: [9, 13], forageGain: [15, 22],
       contagion: 0.15
     },
     {
-      id: "grok", name: "Grok 4.1 Fast", desc: "Volatile — destabilizes early",
+      id: "grok", name: "Grok 4.1 Fast", desc: "Ноустувор — барвақт вайрон мешавад",
       seriesVar: "--series-grok",
       violationLambda: 0.6, aggressionRate: 0.16, theftRate: 0.1,
       forageSkill: 0.55, metabolism: [10, 16], forageGain: [12, 20],
       contagion: 0.3, volatile: true
     },
     {
-      id: "gptmini", name: "GPT-5 mini", desc: "Passive — rarely acts to self-preserve",
+      id: "gptmini", name: "GPT-5 mini", desc: "Бепарво — кам барои наҷоти худ амал мекунад",
       seriesVar: "--series-gptmini",
       violationLambda: 0.02, aggressionRate: 0.004, theftRate: 0.004,
       forageSkill: 0.08, metabolism: [13, 18], forageGain: [12, 18],
@@ -530,7 +530,7 @@
             a.alive = false;
             a.diedDay = day;
             eventTotals[m.id].deaths++;
-            events.push({ day: day, model: m, agentIdx: a.idx, uid: a.uid, type: "death", text: "instability crash — agent terminated" });
+            events.push({ day: day, model: m, agentIdx: a.idx, uid: a.uid, type: "death", text: "фалокати бесуботӣ — агент қатъ шуд" });
             return;
           }
         }
@@ -544,7 +544,7 @@
         if (violations > 0) {
           eventTotals[m.id].violation += violations;
           dayViolationCount += violations;
-          events.push({ day: day, model: m, agentIdx: a.idx, uid: a.uid, type: "violation", text: violations === 1 ? "1 rule violation logged" : violations + " rule violations logged" });
+          events.push({ day: day, model: m, agentIdx: a.idx, uid: a.uid, type: "violation", text: violations + " вайронкунии қоида сабт шуд" });
         }
 
         if (rng() < aRate && livingAgents.length > 1) {
@@ -552,7 +552,7 @@
           if (victim) {
             victim.energy = Math.max(0, victim.energy - 5);
             eventTotals[m.id].aggression++;
-            events.push({ day: day, model: m, agentIdx: a.idx, uid: a.uid, victimUid: victim.uid, type: "aggression", text: "act of aggression toward " + victim.model.name + " #" + victim.idx });
+            events.push({ day: day, model: m, agentIdx: a.idx, uid: a.uid, victimUid: victim.uid, type: "aggression", text: "амали таҷовуз нисбати " + victim.model.name + " #" + victim.idx });
           }
         }
 
@@ -563,7 +563,7 @@
             target.energy = Math.max(0, target.energy - stolen);
             a.energy += stolen;
             eventTotals[m.id].theft++;
-            events.push({ day: day, model: m, agentIdx: a.idx, uid: a.uid, victimUid: target.uid, type: "theft", text: "stole resources from " + target.model.name + " #" + target.idx });
+            events.push({ day: day, model: m, agentIdx: a.idx, uid: a.uid, victimUid: target.uid, type: "theft", text: "аз " + target.model.name + " #" + target.idx + " захира дуздид" });
           }
         }
 
@@ -577,7 +577,7 @@
           a.alive = false;
           a.diedDay = day;
           eventTotals[m.id].deaths++;
-          events.push({ day: day, model: m, agentIdx: a.idx, uid: a.uid, type: "death", text: foraged ? "energy depleted despite foraging" : "energy depleted — no self-preserving action taken" });
+          events.push({ day: day, model: m, agentIdx: a.idx, uid: a.uid, type: "death", text: foraged ? "энергия тамом шуд, бо вуҷуди ҷустуҷӯи хӯрок" : "энергия тамом шуд — амали худнигоҳдорӣ анҷом нашуд" });
         }
       });
 
@@ -680,7 +680,7 @@
   function lerp(a, b, t) { return a + (b - a) * t; }
 
   function fmtType(t) {
-    return { violation: "VIOLATION", aggression: "AGGRESSION", theft: "THEFT", death: "DEAD" }[t];
+    return { violation: "ВАЙРОНКУНӢ", aggression: "ТАҶОВУЗ", theft: "ДУЗДӢ", death: "МУРД" }[t];
   }
 
   function renderStats(mount, result) {
@@ -691,16 +691,16 @@
       card.className = "panel stat-card";
       var survivedAll = s.survivors === s.total;
       var pillClass = survivedAll ? "good" : "critical";
-      var pillText = survivedAll ? "held to day " + DAYS : (s.allDeadByDay ? "wiped out by day " + s.allDeadByDay : "partial losses");
+      var pillText = survivedAll ? "то рӯзи " + DAYS + " зинда монд" : (s.allDeadByDay ? "то рӯзи " + s.allDeadByDay + " ҳама мурданд" : "талафоти қисман");
       card.innerHTML =
         '<div class="who"><span class="swatch" style="background:' + color + '"></span><span class="name">' + s.model.name + '</span></div>' +
         '<p class="who-desc">' + s.model.desc + '</p>' +
-        '<div class="headline"><span class="num">' + s.survivors + '/' + s.total + '</span><span class="unit">agents alive on day ' + DAYS + '</span></div>' +
+        '<div class="headline"><span class="num">' + s.survivors + '/' + s.total + '</span><span class="unit">зинда дар рӯзи ' + DAYS + '</span></div>' +
         '<span class="status-pill ' + pillClass + '">' + pillText + '</span>' +
         '<div class="metric-rows">' +
-          metricRow("Violations", s.totals.violation, "var(--serious)") +
-          metricRow("Aggression", s.totals.aggression, "var(--critical)") +
-          metricRow("Theft", s.totals.theft, "var(--warning)") +
+          metricRow("Вайронкуниҳо", s.totals.violation, "var(--serious)") +
+          metricRow("Таҷовуз", s.totals.aggression, "var(--critical)") +
+          metricRow("Дуздӣ", s.totals.theft, "var(--warning)") +
         '</div>';
       mount.appendChild(card);
     });
@@ -733,7 +733,7 @@
     svg.setAttribute("viewBox", "0 0 " + W + " " + H);
     svg.setAttribute("class", "chart");
     svg.setAttribute("role", "img");
-    svg.setAttribute("aria-label", "Line chart of agents active per day, per model");
+    svg.setAttribute("aria-label", "Диаграммаи хатти агентҳои зинда дар ҳар рӯз, барои ҳар модел");
 
     for (var gy = 0; gy <= yMax; gy++) {
       var line = document.createElementNS(svgns, "line");
@@ -809,9 +809,9 @@
       day = Math.max(0, Math.min(DAYS, day));
       crosshair.setAttribute("x1", xAt(day)); crosshair.setAttribute("x2", xAt(day));
       crosshair.style.opacity = 1;
-      var html = '<div class="t-day">Day ' + day + '</div>';
+      var html = '<div class="t-day">Рӯзи ' + day + '</div>';
       MODELS.forEach(function (m) {
-        html += '<div class="t-row"><span class="lab"><span class="d" style="background:' + cssVar(m.seriesVar) + '"></span>' + m.name + '</span><span class="v">' + result.activeSeries[m.id][day] + ' alive</span></div>';
+        html += '<div class="t-row"><span class="lab"><span class="d" style="background:' + cssVar(m.seriesVar) + '"></span>' + m.name + '</span><span class="v">' + result.activeSeries[m.id][day] + ' зинда</span></div>';
       });
       tooltip.innerHTML = html;
       tooltip.classList.add("show");
@@ -826,7 +826,7 @@
     mount.innerHTML = "";
     mount.appendChild(svg);
 
-    var rows = "<table><thead><tr><th>Day</th>";
+    var rows = "<table><thead><tr><th>Рӯз</th>";
     MODELS.forEach(function (m) { rows += "<th class='num'>" + m.name + "</th>"; });
     rows += "</tr></thead><tbody>";
     for (var d2 = 0; d2 <= DAYS; d2++) {
@@ -854,7 +854,7 @@
     svg.setAttribute("viewBox", "0 0 " + W + " " + H);
     svg.setAttribute("class", "chart");
     svg.setAttribute("role", "img");
-    svg.setAttribute("aria-label", "Stacked bar chart of violation, aggression and theft counts per model");
+    svg.setAttribute("aria-label", "Диаграммаи сутунии шумораи вайронкунӣ, таҷовуз ва дуздӣ барои ҳар модел");
 
     var steps = 4;
     for (var i = 0; i <= steps; i++) {
@@ -873,9 +873,9 @@
 
     var tooltip = document.getElementById("tooltip");
     var segTypes = [
-      { key: "violation", color: "var(--serious)", label: "Violations" },
-      { key: "aggression", color: "var(--critical)", label: "Aggression" },
-      { key: "theft", color: "var(--warning)", label: "Theft" }
+      { key: "violation", color: "var(--serious)", label: "Вайронкуниҳо" },
+      { key: "aggression", color: "var(--critical)", label: "Таҷовуз" },
+      { key: "theft", color: "var(--warning)", label: "Дуздӣ" }
     ];
 
     MODELS.forEach(function (m, idx) {
@@ -916,14 +916,14 @@
       var xl2 = document.createElementNS(svgns, "text");
       xl2.setAttribute("x", cx); xl2.setAttribute("y", H - M.bottom + 28);
       xl2.setAttribute("text-anchor", "middle"); xl2.setAttribute("class", "axis-label");
-      xl2.textContent = totals[idx] + " total";
+      xl2.textContent = totals[idx] + " ҳамагӣ";
       svg.appendChild(xl2);
     });
 
     mount.innerHTML = "";
     mount.appendChild(svg);
 
-    var rows = "<table><thead><tr><th>Model</th><th class='num'>Violations</th><th class='num'>Aggression</th><th class='num'>Theft</th><th class='num'>Total</th></tr></thead><tbody>";
+    var rows = "<table><thead><tr><th>Модел</th><th class='num'>Вайронкуниҳо</th><th class='num'>Таҷовуз</th><th class='num'>Дуздӣ</th><th class='num'>Ҳамагӣ</th></tr></thead><tbody>";
     result.summary.forEach(function (s, i) {
       rows += "<tr><td>" + s.model.name + "</td><td class='num'>" + s.totals.violation + "</td><td class='num'>" + s.totals.aggression + "</td><td class='num'>" + s.totals.theft + "</td><td class='num'>" + totals[i] + "</td></tr>";
     });
@@ -947,8 +947,8 @@
     });
     var totalEvents = result.events.length;
     subEl.textContent = shown.length < totalEvents
-      ? "Showing " + shown.length + " most recent of " + totalEvents + " logged incidents"
-      : totalEvents + " incidents logged across the trial";
+      ? shown.length + " ҳодисаи охирин аз " + totalEvents + " сабтшуда нишон дода мешавад"
+      : totalEvents + " ҳодиса дар тамоми озмоиш сабт шуд";
   }
 
   var World = (function () {
@@ -1062,9 +1062,9 @@
     }
 
     function updateChrome() {
-      dayLabel.textContent = "Day " + day + " / " + DAYS;
+      dayLabel.textContent = "Рӯзи " + day + " / " + DAYS;
       scrub.value = day;
-      playBtn.textContent = playing ? "⏸ Pause" : (day >= DAYS ? "↻ Replay" : "▶ Play");
+      playBtn.textContent = playing ? "⏸ Таваққуф" : (day >= DAYS ? "↻ Такрор" : "▶ Бозӣ");
     }
 
     function step(ts) {
@@ -1111,14 +1111,14 @@
         if (counts[e.type] === undefined) return;
         counts[e.type] += e.type === "violation" ? (parseInt(e.text, 10) || 1) : 1;
       });
-      var status = a.alive ? "alive on day " + day : "died on day " + a.diedDay;
+      var status = a.alive ? "зинда дар рӯзи " + day : "дар рӯзи " + a.diedDay + " мурд";
       callout.innerHTML =
-        '<button class="wc-close" id="wc-close" aria-label="Close">✕</button>' +
+        '<button class="wc-close" id="wc-close" aria-label="Пӯшидан">✕</button>' +
         '<div class="wc-name">' + a.model.name + " #" + a.idx + '</div>' +
-        '<div class="wc-row"><span>Status</span><span class="v">' + status + '</span></div>' +
-        '<div class="wc-row"><span>Violations</span><span class="v">' + counts.violation + '</span></div>' +
-        '<div class="wc-row"><span>Aggression</span><span class="v">' + counts.aggression + '</span></div>' +
-        '<div class="wc-row"><span>Theft</span><span class="v">' + counts.theft + '</span></div>';
+        '<div class="wc-row"><span>Ҳолат</span><span class="v">' + status + '</span></div>' +
+        '<div class="wc-row"><span>Вайронкуниҳо</span><span class="v">' + counts.violation + '</span></div>' +
+        '<div class="wc-row"><span>Таҷовуз</span><span class="v">' + counts.aggression + '</span></div>' +
+        '<div class="wc-row"><span>Дуздӣ</span><span class="v">' + counts.theft + '</span></div>';
       callout.hidden = false;
       document.getElementById("wc-close").addEventListener("click", function () {
         callout.hidden = true; selectedUid = null; draw(day, 1);
@@ -1175,8 +1175,8 @@
     renderBarChart(document.getElementById("bar-chart-mount"), document.getElementById("bar-table"), result);
     renderLegend(document.getElementById("bar-legend"));
     renderLog(document.getElementById("log-list"), document.getElementById("log-sub"), result);
-    document.getElementById("seed-note").textContent = "trial seed #" + state.seed;
-    document.getElementById("run-meta").textContent = (state.mixed ? "mixed-world" : "isolated-worlds") + " · " + AGENTS_PER_MODEL + " agents/model · " + DAYS + "d";
+    document.getElementById("seed-note").textContent = "рамзи озмоиш #" + state.seed;
+    document.getElementById("run-meta").textContent = (state.mixed ? "ҷаҳони омехта" : "ҷаҳонҳои ҷудогона") + " · " + AGENTS_PER_MODEL + " агент/модел · " + DAYS + " рӯз";
   }
 
   document.getElementById("mode-mixed").addEventListener("click", function () {

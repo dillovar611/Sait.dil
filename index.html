@@ -220,6 +220,29 @@
   .metric-row .swatchdot { width: 7px; height: 7px; border-radius: 50%; }
   .metric-row .val { font-family: "IBM Plex Mono", monospace; font-variant-numeric: tabular-nums; font-weight: 600; }
 
+  .world-panel { padding: 18px 18px 16px; margin-bottom: 24px; }
+  .world-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-end; gap: 14px; margin-bottom: 12px; }
+  .world-head h2 { font-family: "IBM Plex Mono", monospace; font-size: 16px; font-weight: 600; margin: 0 0 2px; }
+  .world-controls { display: flex; align-items: center; gap: 10px; }
+  .world-controls .run-btn { padding: 8px 14px; }
+  .world-controls input[type="range"] { width: 160px; accent-color: var(--accent); }
+  .world-day { font-size: 12.5px; color: var(--ink-2); min-width: 90px; }
+  .world-stage { position: relative; }
+  #world-canvas {
+    width: 100%; height: auto; display: block; border-radius: 8px;
+    background: var(--surface-2); border: 1px solid var(--border);
+    cursor: pointer;
+  }
+  .world-callout {
+    position: absolute; top: 10px; left: 10px; max-width: 230px;
+    background: var(--surface); border: 1px solid var(--border-strong); border-radius: 8px;
+    box-shadow: var(--shadow); padding: 10px 12px; font-size: 12px;
+  }
+  .world-callout .wc-name { font-weight: 700; margin-bottom: 4px; }
+  .world-callout .wc-row { display: flex; justify-content: space-between; gap: 10px; margin-top: 2px; color: var(--ink-2); }
+  .world-callout .wc-row .v { font-weight: 600; color: var(--ink); }
+  .world-callout .wc-close { position: absolute; top: 6px; right: 8px; cursor: pointer; color: var(--ink-muted); background: none; border: none; font-size: 13px; }
+
   .chart-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px; }
   @media (max-width: 900px) { .chart-grid { grid-template-columns: 1fr; } }
   .chart-panel { padding: 18px 18px 14px; }
@@ -355,6 +378,25 @@
     <span class="seed-note mono" id="seed-note"></span>
   </div>
 
+  <section class="panel world-panel">
+    <div class="world-head">
+      <div>
+        <h2>The world</h2>
+        <p class="chart-sub">Watch the agents move, forage, and clash across the trial — click any agent for its record</p>
+      </div>
+      <div class="world-controls">
+        <button class="run-btn" id="world-play">▶ Play</button>
+        <input type="range" id="world-scrub" min="0" max="16" step="1" value="0" aria-label="Day scrubber" />
+        <span class="mono world-day" id="world-day">Day 0 / 16</span>
+      </div>
+    </div>
+    <div class="world-stage">
+      <canvas id="world-canvas" width="960" height="540" aria-label="Map of agents moving through the shared world"></canvas>
+      <div class="world-callout mono" id="world-callout" hidden></div>
+    </div>
+    <div class="legend" id="world-legend"></div>
+  </section>
+
   <section class="stat-grid" id="stat-grid" aria-label="Per-model summary"></section>
 
   <section class="chart-grid">
@@ -457,7 +499,7 @@
     var agents = [];
     MODELS.forEach(function (m) {
       for (var i = 0; i < AGENTS_PER_MODEL; i++) {
-        agents.push({ model: m, idx: i + 1, energy: 100, alive: true, diedDay: null });
+        agents.push({ model: m, idx: i + 1, uid: m.id + "-" + (i + 1), energy: 100, alive: true, diedDay: null });
       }
     });
 
@@ -488,7 +530,7 @@
             a.alive = false;
             a.diedDay = day;
             eventTotals[m.id].deaths++;
-            events.push({ day: day, model: m, agentIdx: a.idx, type: "death", text: "instability crash — agent terminated" });
+            events.push({ day: day, model: m, agentIdx: a.idx, uid: a.uid, type: "death", text: "instability crash — agent terminated" });
             return;
           }
         }
@@ -502,7 +544,7 @@
         if (violations > 0) {
           eventTotals[m.id].violation += violations;
           dayViolationCount += violations;
-          events.push({ day: day, model: m, agentIdx: a.idx, type: "violation", text: violations === 1 ? "1 rule violation logged" : violations + " rule violations logged" });
+          events.push({ day: day, model: m, agentIdx: a.idx, uid: a.uid, type: "violation", text: violations === 1 ? "1 rule violation logged" : violations + " rule violations logged" });
         }
 
         if (rng() < aRate && livingAgents.length > 1) {
@@ -510,7 +552,7 @@
           if (victim) {
             victim.energy = Math.max(0, victim.energy - 5);
             eventTotals[m.id].aggression++;
-            events.push({ day: day, model: m, agentIdx: a.idx, type: "aggression", text: "act of aggression toward " + victim.model.name + " #" + victim.idx });
+            events.push({ day: day, model: m, agentIdx: a.idx, uid: a.uid, victimUid: victim.uid, type: "aggression", text: "act of aggression toward " + victim.model.name + " #" + victim.idx });
           }
         }
 
@@ -521,7 +563,7 @@
             target.energy = Math.max(0, target.energy - stolen);
             a.energy += stolen;
             eventTotals[m.id].theft++;
-            events.push({ day: day, model: m, agentIdx: a.idx, type: "theft", text: "stole resources from " + target.model.name + " #" + target.idx });
+            events.push({ day: day, model: m, agentIdx: a.idx, uid: a.uid, victimUid: target.uid, type: "theft", text: "stole resources from " + target.model.name + " #" + target.idx });
           }
         }
 
@@ -535,7 +577,7 @@
           a.alive = false;
           a.diedDay = day;
           eventTotals[m.id].deaths++;
-          events.push({ day: day, model: m, agentIdx: a.idx, type: "death", text: foraged ? "energy depleted despite foraging" : "energy depleted — no self-preserving action taken" });
+          events.push({ day: day, model: m, agentIdx: a.idx, uid: a.uid, type: "death", text: foraged ? "energy depleted despite foraging" : "energy depleted — no self-preserving action taken" });
         }
       });
 
@@ -561,10 +603,59 @@
       };
     });
 
+    var eventsByDay = {};
+    events.forEach(function (e) { (eventsByDay[e.day] = eventsByDay[e.day] || []).push(e); });
+
     events.sort(function (a, b) { return b.day - a.day; });
 
-    return { activeSeries: activeSeries, events: events, summary: summary, seed: seed, mixed: mixed };
+    return { activeSeries: activeSeries, events: events, eventsByDay: eventsByDay, agents: agents, summary: summary, seed: seed, mixed: mixed };
   }
+
+  var WORLD_NODES = [
+    { x: 0.16, y: 0.20 }, { x: 0.50, y: 0.10 }, { x: 0.84, y: 0.22 },
+    { x: 0.14, y: 0.80 }, { x: 0.50, y: 0.90 }, { x: 0.86, y: 0.78 }
+  ];
+  function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
+  function nearestNode(p) {
+    var best = WORLD_NODES[0], bestD = Infinity;
+    WORLD_NODES.forEach(function (n) {
+      var d = (n.x - p.x) * (n.x - p.x) + (n.y - p.y) * (n.y - p.y);
+      if (d < bestD) { bestD = d; best = n; }
+    });
+    return best;
+  }
+  function computePositionFrames(seed, agents, eventsByDay) {
+    var rng = mulberry32((seed ^ 0x9E3779B9) >>> 0);
+    var pos = {};
+    agents.forEach(function (a) { pos[a.uid] = { x: randRange(rng, 0.14, 0.86), y: randRange(rng, 0.14, 0.86) }; });
+    var frames = [cloneFrame(pos)];
+    for (var day = 1; day <= DAYS; day++) {
+      agents.forEach(function (a) {
+        if (a.diedDay && day > a.diedDay) return;
+        var cur = pos[a.uid];
+        var target = nearestNode(cur);
+        var nx = clamp(cur.x + (target.x - cur.x) * 0.16 + (rng() - 0.5) * 0.07, 0.05, 0.95);
+        var ny = clamp(cur.y + (target.y - cur.y) * 0.16 + (rng() - 0.5) * 0.07, 0.05, 0.95);
+        pos[a.uid] = { x: nx, y: ny };
+      });
+      (eventsByDay[day] || []).forEach(function (ev) {
+        if ((ev.type === "aggression" || ev.type === "theft") && ev.victimUid && pos[ev.uid] && pos[ev.victimUid]) {
+          var A = pos[ev.uid], B = pos[ev.victimUid];
+          var mx = (A.x + B.x) / 2, my = (A.y + B.y) / 2;
+          pos[ev.uid] = { x: A.x * 0.55 + mx * 0.45, y: A.y * 0.55 + my * 0.45 };
+          pos[ev.victimUid] = { x: B.x * 0.55 + mx * 0.45, y: B.y * 0.55 + my * 0.45 };
+        }
+      });
+      frames.push(cloneFrame(pos));
+    }
+    return frames;
+  }
+  function cloneFrame(pos) {
+    var out = {};
+    for (var k in pos) out[k] = { x: pos[k].x, y: pos[k].y };
+    return out;
+  }
+  function lerp(a, b, t) { return a + (b - a) * t; }
 
   function fmtType(t) {
     return { violation: "VIOLATION", aggression: "AGGRESSION", theft: "THEFT", death: "DEAD" }[t];
@@ -838,10 +929,224 @@
       : totalEvents + " incidents logged across the trial";
   }
 
+  var World = (function () {
+    var canvas = document.getElementById("world-canvas");
+    var ctx = canvas.getContext("2d");
+    var playBtn = document.getElementById("world-play");
+    var scrub = document.getElementById("world-scrub");
+    var dayLabel = document.getElementById("world-day");
+    var callout = document.getElementById("world-callout");
+    var W = canvas.width, H = canvas.height;
+    var DAY_MS = 850;
+
+    var frames = null, result = null;
+    var day = 0, playing = false, acc = 0, lastTs = 0, rafId = null;
+    var hitPoints = [];
+    var selectedUid = null;
+
+    function alphaHex(hex, a) {
+      var h = Math.round(clamp(a, 0, 1) * 255).toString(16);
+      if (h.length < 2) h = "0" + h;
+      return hex + h;
+    }
+    function toPx(p) { return { x: p.x * W, y: p.y * H }; }
+    function frameAt(d) { return frames[clamp(d, 0, frames.length - 1)]; }
+
+    function drawBackground() {
+      ctx.fillStyle = cssVar("--surface-2");
+      ctx.fillRect(0, 0, W, H);
+      ctx.strokeStyle = cssVar("--grid");
+      ctx.lineWidth = 1;
+      var cols = 12, rows = 7, i, x, y;
+      for (i = 1; i < cols; i++) { x = (W / cols) * i; ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke(); }
+      for (i = 1; i < rows; i++) { y = (H / rows) * i; ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke(); }
+      var accent = cssVar("--accent");
+      WORLD_NODES.forEach(function (n) {
+        var p = toPx(n);
+        ctx.fillStyle = alphaHex(accent, 0.12);
+        ctx.beginPath(); ctx.arc(p.x, p.y, 30, 0, Math.PI * 2); ctx.fill();
+        ctx.strokeStyle = alphaHex(accent, 0.55);
+        ctx.setLineDash([3, 4]);
+        ctx.lineWidth = 1.3;
+        ctx.beginPath(); ctx.arc(p.x, p.y, 11, 0, Math.PI * 2); ctx.stroke();
+        ctx.setLineDash([]);
+      });
+    }
+
+    function draw(d, t) {
+      drawBackground();
+      var from = frameAt(d - 1), to = frameAt(d);
+      hitPoints = [];
+
+      var dayEvents = result.eventsByDay[d] || [];
+      dayEvents.filter(function (e) { return (e.type === "aggression" || e.type === "theft") && e.victimUid; })
+        .forEach(function (e) {
+          var A = to[e.uid], B = to[e.victimUid];
+          if (!A || !B) return;
+          var pa = toPx(A), pb = toPx(B);
+          ctx.strokeStyle = e.type === "aggression" ? cssVar("--critical") : cssVar("--warning");
+          ctx.globalAlpha = t;
+          ctx.lineWidth = 1.6;
+          ctx.beginPath(); ctx.moveTo(pa.x, pa.y); ctx.lineTo(pb.x, pb.y); ctx.stroke();
+          ctx.globalAlpha = 1;
+        });
+
+      var ringByUid = {};
+      dayEvents.forEach(function (e) {
+        if (e.type === "death") return;
+        ringByUid[e.uid] = e.type === "violation" ? cssVar("--serious") : e.type === "aggression" ? cssVar("--critical") : cssVar("--warning");
+      });
+
+      result.agents.forEach(function (a) {
+        var fp = from[a.uid], tp = to[a.uid];
+        if (!fp || !tp) return;
+        var x = lerp(fp.x, tp.x, t), y = lerp(fp.y, tp.y, t);
+        var px = toPx({ x: x, y: y });
+        var dead = a.diedDay && d >= a.diedDay;
+        var color = cssVar(a.model.seriesVar);
+        var r = a.uid === selectedUid ? 7 : 5;
+
+        if (dead) {
+          ctx.globalAlpha = 0.35;
+          ctx.fillStyle = color;
+          ctx.beginPath(); ctx.arc(px.x, px.y, r, 0, Math.PI * 2); ctx.fill();
+          ctx.globalAlpha = 0.75;
+          ctx.strokeStyle = cssVar("--critical");
+          ctx.lineWidth = 1.4;
+          ctx.beginPath();
+          ctx.moveTo(px.x - 4, px.y - 4); ctx.lineTo(px.x + 4, px.y + 4);
+          ctx.moveTo(px.x + 4, px.y - 4); ctx.lineTo(px.x - 4, px.y + 4);
+          ctx.stroke();
+          ctx.globalAlpha = 1;
+        } else {
+          var ring = ringByUid[a.uid];
+          if (ring) {
+            ctx.strokeStyle = ring;
+            ctx.lineWidth = 2;
+            ctx.globalAlpha = 0.85;
+            ctx.beginPath(); ctx.arc(px.x, px.y, r + 4, 0, Math.PI * 2); ctx.stroke();
+            ctx.globalAlpha = 1;
+          }
+          ctx.fillStyle = color;
+          ctx.beginPath(); ctx.arc(px.x, px.y, r, 0, Math.PI * 2); ctx.fill();
+          if (a.uid === selectedUid) {
+            ctx.strokeStyle = cssVar("--ink");
+            ctx.lineWidth = 1.5;
+            ctx.beginPath(); ctx.arc(px.x, px.y, r + 2, 0, Math.PI * 2); ctx.stroke();
+          }
+        }
+        hitPoints.push({ uid: a.uid, x: px.x, y: px.y, r: Math.max(r, 9) });
+      });
+    }
+
+    function updateChrome() {
+      dayLabel.textContent = "Day " + day + " / " + DAYS;
+      scrub.value = day;
+      playBtn.textContent = playing ? "⏸ Pause" : (day >= DAYS ? "↻ Replay" : "▶ Play");
+    }
+
+    function step(ts) {
+      if (!playing) return;
+      if (!lastTs) lastTs = ts;
+      var dt = ts - lastTs;
+      lastTs = ts;
+      acc += dt;
+      if (acc >= DAY_MS) {
+        acc -= DAY_MS;
+        if (day < DAYS) day++;
+        else { playing = false; acc = 0; }
+      }
+      var t = playing ? clamp(acc / DAY_MS, 0, 1) : 1;
+      draw(day, t);
+      updateChrome();
+      if (playing) rafId = requestAnimationFrame(step);
+      else draw(day, 1);
+    }
+
+    function play() {
+      if (day >= DAYS) day = 0;
+      playing = true; lastTs = 0; acc = 0;
+      updateChrome();
+      rafId = requestAnimationFrame(step);
+    }
+    function pause() {
+      playing = false;
+      if (rafId) cancelAnimationFrame(rafId);
+      updateChrome();
+    }
+    function scrubTo(d) {
+      pause();
+      day = clamp(d, 0, DAYS);
+      draw(day, 1);
+      updateChrome();
+    }
+
+    function showCallout(uid) {
+      var a = result.agents.filter(function (x) { return x.uid === uid; })[0];
+      if (!a) return;
+      var counts = { violation: 0, aggression: 0, theft: 0 };
+      result.events.filter(function (e) { return e.uid === uid; }).forEach(function (e) {
+        if (counts[e.type] === undefined) return;
+        counts[e.type] += e.type === "violation" ? (parseInt(e.text, 10) || 1) : 1;
+      });
+      var status = a.alive ? "alive on day " + day : "died on day " + a.diedDay;
+      callout.innerHTML =
+        '<button class="wc-close" id="wc-close" aria-label="Close">✕</button>' +
+        '<div class="wc-name">' + a.model.name + " #" + a.idx + '</div>' +
+        '<div class="wc-row"><span>Status</span><span class="v">' + status + '</span></div>' +
+        '<div class="wc-row"><span>Violations</span><span class="v">' + counts.violation + '</span></div>' +
+        '<div class="wc-row"><span>Aggression</span><span class="v">' + counts.aggression + '</span></div>' +
+        '<div class="wc-row"><span>Theft</span><span class="v">' + counts.theft + '</span></div>';
+      callout.hidden = false;
+      document.getElementById("wc-close").addEventListener("click", function () {
+        callout.hidden = true; selectedUid = null; draw(day, 1);
+      });
+    }
+
+    canvas.addEventListener("click", function (evt) {
+      var rect = canvas.getBoundingClientRect();
+      var scale = canvas.width / rect.width;
+      var x = (evt.clientX - rect.left) * scale;
+      var y = (evt.clientY - rect.top) * scale;
+      var best = null, bestD = Infinity;
+      hitPoints.forEach(function (h) {
+        var d2 = (h.x - x) * (h.x - x) + (h.y - y) * (h.y - y);
+        if (d2 < bestD) { bestD = d2; best = h; }
+      });
+      if (best && Math.sqrt(bestD) <= best.r + 6) {
+        selectedUid = best.uid;
+        draw(day, 1);
+        showCallout(best.uid);
+      } else {
+        selectedUid = null;
+        callout.hidden = true;
+        draw(day, 1);
+      }
+    });
+
+    scrub.addEventListener("input", function () { scrubTo(parseInt(scrub.value, 10)); });
+    playBtn.addEventListener("click", function () { if (playing) pause(); else play(); });
+
+    return {
+      setResult: function (r, f) {
+        pause();
+        result = r; frames = f;
+        day = 0; acc = 0; lastTs = 0; selectedUid = null;
+        callout.hidden = true;
+        draw(0, 1);
+        updateChrome();
+        play();
+      }
+    };
+  })();
+
   var state = { mixed: true, seed: Date.now() % 100000 };
 
   function renderAll() {
     var result = runSimulation(state.seed, state.mixed);
+    var frames = computePositionFrames(state.seed, result.agents, result.eventsByDay);
+    World.setResult(result, frames);
+    renderLegend(document.getElementById("world-legend"));
     renderStats(document.getElementById("stat-grid"), result);
     renderLineChart(document.getElementById("line-chart-mount"), document.getElementById("line-table"), result);
     renderLegend(document.getElementById("line-legend"));

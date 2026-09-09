@@ -635,14 +635,6 @@
     { x: 0.14, y: 0.80 }, { x: 0.50, y: 0.90 }, { x: 0.86, y: 0.78 }
   ];
   function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
-  function nearestNode(p) {
-    var best = WORLD_NODES[0], bestD = Infinity;
-    WORLD_NODES.forEach(function (n) {
-      var d = (n.x - p.x) * (n.x - p.x) + (n.y - p.y) * (n.y - p.y);
-      if (d < bestD) { bestD = d; best = n; }
-    });
-    return best;
-  }
   var MIN_SEPARATION = 0.058;
   function applyRepulsion(pos, uids, passes) {
     for (var p = 0; p < passes; p++) {
@@ -662,21 +654,57 @@
       }
     }
   }
+  function pickGoal(rng, avoidIdx) {
+    var i = Math.floor(rng() * WORLD_NODES.length);
+    if (avoidIdx !== undefined && WORLD_NODES.length > 1 && i === avoidIdx) i = (i + 1) % WORLD_NODES.length;
+    return i;
+  }
+  function farthestNodeFrom(p) {
+    var best = 0, bestD = -1;
+    WORLD_NODES.forEach(function (n, i) {
+      var d = (n.x - p.x) * (n.x - p.x) + (n.y - p.y) * (n.y - p.y);
+      if (d > bestD) { bestD = d; best = i; }
+    });
+    return best;
+  }
   function computePositionFrames(seed, agents, eventsByDay) {
     var rng = mulberry32((seed ^ 0x9E3779B9) >>> 0);
     var pos = {};
+    var brain = {};
     var uids = agents.map(function (a) { return a.uid; });
-    agents.forEach(function (a) { pos[a.uid] = { x: randRange(rng, 0.14, 0.86), y: randRange(rng, 0.14, 0.86) }; });
+    agents.forEach(function (a) {
+      pos[a.uid] = { x: randRange(rng, 0.14, 0.86), y: randRange(rng, 0.14, 0.86) };
+      brain[a.uid] = { goal: pickGoal(rng), mode: "travel", idleLeft: 0 };
+    });
     applyRepulsion(pos, uids, 3);
     var frames = [cloneFrame(pos)];
     for (var day = 1; day <= DAYS; day++) {
       agents.forEach(function (a) {
         if (a.diedDay && day > a.diedDay) return;
         var cur = pos[a.uid];
-        var target = nearestNode(cur);
-        var nx = clamp(cur.x + (target.x - cur.x) * 0.10 + (rng() - 0.5) * 0.06, 0.05, 0.95);
-        var ny = clamp(cur.y + (target.y - cur.y) * 0.10 + (rng() - 0.5) * 0.06, 0.05, 0.95);
-        pos[a.uid] = { x: nx, y: ny };
+        var b = brain[a.uid];
+        var goalNode = WORLD_NODES[b.goal];
+
+        if (b.mode === "idle") {
+          b.idleLeft--;
+          pos[a.uid] = {
+            x: clamp(cur.x + (rng() - 0.5) * 0.035, 0.05, 0.95),
+            y: clamp(cur.y + (rng() - 0.5) * 0.035, 0.05, 0.95)
+          };
+          if (b.idleLeft <= 0) { b.mode = "travel"; b.goal = pickGoal(rng, b.goal); }
+        } else {
+          var dx = goalNode.x - cur.x, dy = goalNode.y - cur.y;
+          var dist = Math.sqrt(dx * dx + dy * dy);
+          if (dist < 0.045) {
+            b.mode = "idle";
+            b.idleLeft = 1 + Math.floor(rng() * 3);
+          } else {
+            pos[a.uid] = {
+              x: clamp(cur.x + dx * 0.34 + (rng() - 0.5) * 0.03, 0.05, 0.95),
+              y: clamp(cur.y + dy * 0.34 + (rng() - 0.5) * 0.03, 0.05, 0.95)
+            };
+          }
+        }
       });
       (eventsByDay[day] || []).forEach(function (ev) {
         if ((ev.type === "aggression" || ev.type === "theft") && ev.victimUid && pos[ev.uid] && pos[ev.victimUid]) {
@@ -684,6 +712,8 @@
           var mx = (A.x + B.x) / 2, my = (A.y + B.y) / 2;
           pos[ev.uid] = { x: A.x * 0.82 + mx * 0.18, y: A.y * 0.82 + my * 0.18 };
           pos[ev.victimUid] = { x: B.x * 0.82 + mx * 0.18, y: B.y * 0.82 + my * 0.18 };
+          var vb = brain[ev.victimUid];
+          if (vb) { vb.mode = "travel"; vb.goal = farthestNodeFrom(pos[ev.victimUid]); }
         }
       });
       applyRepulsion(pos, uids, 3);

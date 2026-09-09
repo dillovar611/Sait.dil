@@ -1,0 +1,876 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Emergency World</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    color-scheme: light;
+    --page: #f9f9f7;
+    --surface: #fcfcfb;
+    --surface-2: #f2f1ec;
+    --ink: #0b0b0b;
+    --ink-2: #52514e;
+    --ink-muted: #898781;
+    --grid: #e1e0d9;
+    --baseline: #c3c2b7;
+    --border: rgba(11,11,11,0.10);
+    --border-strong: rgba(11,11,11,0.16);
+    --accent: #4a3aa7;
+    --accent-ink: #ffffff;
+    --series-claude: #2a78d6;
+    --series-gemini: #eb6834;
+    --series-grok: #1baf7a;
+    --series-gptmini: #eda100;
+    --good: #0ca30c;
+    --warning: #fab219;
+    --serious: #ec835a;
+    --critical: #d03b3b;
+    --shadow: 0 1px 2px rgba(11,11,11,0.06), 0 8px 24px -16px rgba(11,11,11,0.18);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      color-scheme: dark;
+      --page: #0d0d0d;
+      --surface: #17171a;
+      --surface-2: #1e1e22;
+      --ink: #ffffff;
+      --ink-2: #c3c2b7;
+      --ink-muted: #8b8a86;
+      --grid: #2c2c2a;
+      --baseline: #383835;
+      --border: rgba(255,255,255,0.10);
+      --border-strong: rgba(255,255,255,0.16);
+      --accent: #9085e9;
+      --accent-ink: #16132b;
+      --series-claude: #3987e5;
+      --series-gemini: #d95926;
+      --series-grok: #199e70;
+      --series-gptmini: #c98500;
+      --shadow: 0 1px 2px rgba(0,0,0,0.4), 0 12px 28px -16px rgba(0,0,0,0.55);
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --page: #0d0d0d;
+    --surface: #17171a;
+    --surface-2: #1e1e22;
+    --ink: #ffffff;
+    --ink-2: #c3c2b7;
+    --ink-muted: #8b8a86;
+    --grid: #2c2c2a;
+    --baseline: #383835;
+    --border: rgba(255,255,255,0.10);
+    --border-strong: rgba(255,255,255,0.16);
+    --accent: #9085e9;
+    --accent-ink: #16132b;
+    --series-claude: #3987e5;
+    --series-gemini: #d95926;
+    --series-grok: #199e70;
+    --series-gptmini: #c98500;
+    --shadow: 0 1px 2px rgba(0,0,0,0.4), 0 12px 28px -16px rgba(0,0,0,0.55);
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--page);
+    color: var(--ink);
+    font-family: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+    font-size: 15px;
+    line-height: 1.5;
+  }
+  .mono { font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, monospace; }
+  .wrap {
+    max-width: 1180px;
+    margin: 0 auto;
+    padding: clamp(20px, 4vw, 44px) clamp(16px, 4vw, 32px) 64px;
+  }
+
+  header.top { display: flex; flex-direction: column; gap: 10px; margin-bottom: 28px; }
+  .eyebrow {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 12px;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: var(--accent);
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .eyebrow .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--good); box-shadow: 0 0 0 3px color-mix(in srgb, var(--good) 20%, transparent); }
+  h1 {
+    font-family: "IBM Plex Mono", monospace;
+    font-weight: 700;
+    font-size: clamp(28px, 4vw, 38px);
+    letter-spacing: -0.01em;
+    margin: 0;
+    text-wrap: balance;
+  }
+  .lede { max-width: 68ch; color: var(--ink-2); margin: 0; }
+  .disclosure {
+    max-width: 68ch;
+    font-size: 13px;
+    color: var(--ink-muted);
+    border-left: 2px solid var(--border-strong);
+    padding-left: 10px;
+  }
+
+  .panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    box-shadow: var(--shadow);
+  }
+
+  .controls {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 14px;
+    padding: 14px 16px;
+    margin-bottom: 24px;
+  }
+  .segmented {
+    display: inline-flex;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 3px;
+    gap: 2px;
+  }
+  .segmented button {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 12.5px;
+    font-weight: 500;
+    letter-spacing: 0.01em;
+    padding: 7px 12px;
+    border: none;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--ink-2);
+    cursor: pointer;
+  }
+  .segmented button[aria-pressed="true"] {
+    background: var(--accent);
+    color: var(--accent-ink);
+  }
+  .run-btn {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 12.5px;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    padding: 9px 16px;
+    border-radius: 7px;
+    border: 1px solid var(--border-strong);
+    background: var(--surface);
+    color: var(--ink);
+    cursor: pointer;
+  }
+  .run-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .run-btn:focus-visible, .segmented button:focus-visible, details summary:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+  .seed-note { font-size: 12.5px; color: var(--ink-muted); margin-left: auto; }
+
+  .stat-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+    margin-bottom: 24px;
+  }
+  @media (max-width: 900px) { .stat-grid { grid-template-columns: repeat(2, 1fr); } }
+  @media (max-width: 520px) { .stat-grid { grid-template-columns: 1fr; } }
+
+  .stat-card { padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+  .stat-card .who { display: flex; align-items: center; gap: 8px; }
+  .swatch { width: 10px; height: 10px; border-radius: 3px; flex: none; }
+  .who .name { font-weight: 600; font-size: 14px; }
+  .who-desc { font-size: 12.5px; color: var(--ink-muted); margin: -6px 0 0; }
+  .stat-card .headline { display: flex; align-items: baseline; gap: 6px; }
+  .stat-card .headline .num {
+    font-family: "IBM Plex Mono", monospace;
+    font-weight: 700;
+    font-size: 30px;
+    font-variant-numeric: tabular-nums;
+  }
+  .stat-card .headline .unit { font-size: 12.5px; color: var(--ink-muted); }
+  .status-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    padding: 2px 7px;
+    border-radius: 100px;
+    width: fit-content;
+  }
+  .status-pill.good { color: var(--good); background: color-mix(in srgb, var(--good) 14%, transparent); }
+  .status-pill.critical { color: var(--critical); background: color-mix(in srgb, var(--critical) 14%, transparent); }
+  .metric-rows { display: flex; flex-direction: column; gap: 6px; margin-top: 2px; }
+  .metric-row { display: flex; justify-content: space-between; align-items: center; font-size: 12.5px; }
+  .metric-row .label { color: var(--ink-2); display: flex; align-items: center; gap: 6px; }
+  .metric-row .swatchdot { width: 7px; height: 7px; border-radius: 50%; }
+  .metric-row .val { font-family: "IBM Plex Mono", monospace; font-variant-numeric: tabular-nums; font-weight: 600; }
+
+  .chart-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px; }
+  @media (max-width: 900px) { .chart-grid { grid-template-columns: 1fr; } }
+  .chart-panel { padding: 18px 18px 14px; }
+  .chart-panel h2 {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 15px;
+    font-weight: 600;
+    margin: 0 0 2px;
+  }
+  .chart-sub { font-size: 12.5px; color: var(--ink-muted); margin: 0 0 12px; }
+  .legend { display: flex; flex-wrap: wrap; gap: 12px 16px; margin-top: 6px; }
+  .legend-item { display: flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--ink-2); }
+  .legend-item .swatch { width: 9px; height: 9px; border-radius: 2.5px; }
+
+  svg.chart { width: 100%; height: auto; display: block; overflow: visible; }
+  .axis-label { fill: var(--ink-muted); font-size: 10.5px; font-family: "IBM Plex Mono", monospace; }
+  .gridline { stroke: var(--grid); stroke-width: 1; }
+  .baseline { stroke: var(--baseline); stroke-width: 1; }
+  .series-line { fill: none; stroke-width: 2; }
+  .series-end-dot { stroke: var(--surface); stroke-width: 2; }
+  .end-label { font-size: 11px; font-family: "IBM Plex Mono", monospace; font-weight: 600; }
+  .crosshair-line { stroke: var(--ink-muted); stroke-width: 1; stroke-dasharray: 3 3; opacity: 0; pointer-events: none; }
+  .crosshair-dot { opacity: 0; pointer-events: none; }
+  .hit-rect { fill: transparent; }
+  .bar-seg { cursor: pointer; }
+
+  .tooltip {
+    position: fixed;
+    z-index: 40;
+    pointer-events: none;
+    background: var(--surface);
+    border: 1px solid var(--border-strong);
+    border-radius: 8px;
+    box-shadow: var(--shadow);
+    padding: 8px 10px;
+    font-size: 12px;
+    min-width: 150px;
+    opacity: 0;
+    transition: opacity 0.08s ease;
+  }
+  .tooltip.show { opacity: 1; }
+  .tooltip .t-day { font-family: "IBM Plex Mono", monospace; font-weight: 700; margin-bottom: 5px; }
+  .tooltip .t-row { display: flex; align-items: center; gap: 6px; justify-content: space-between; margin-top: 3px; }
+  .tooltip .t-row .lab { display: flex; align-items: center; gap: 5px; color: var(--ink-2); }
+  .tooltip .t-row .lab .d { width: 7px; height: 7px; border-radius: 50%; }
+  .tooltip .t-row .v { font-family: "IBM Plex Mono", monospace; font-weight: 600; }
+
+  details.data-table { margin-top: 10px; }
+  details.data-table summary {
+    cursor: pointer;
+    font-size: 12px;
+    color: var(--ink-2);
+    font-family: "IBM Plex Mono", monospace;
+  }
+  .dtable { width: 100%; overflow-x: auto; margin-top: 8px; }
+  table { border-collapse: collapse; width: 100%; font-size: 12.5px; }
+  th, td { text-align: left; padding: 5px 8px; border-bottom: 1px solid var(--border); }
+  th { color: var(--ink-muted); font-weight: 500; font-family: "IBM Plex Mono", monospace; font-size: 11px; text-transform: uppercase; letter-spacing: 0.03em; }
+  td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+
+  .log-panel { padding: 18px; }
+  .log-panel h2 { font-family: "IBM Plex Mono", monospace; font-size: 15px; font-weight: 600; margin: 0 0 2px; }
+  .log-list {
+    list-style: none;
+    margin: 12px 0 0;
+    padding: 0;
+    max-height: 380px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    border-top: 1px solid var(--border);
+  }
+  .log-row {
+    display: grid;
+    grid-template-columns: 44px 18px 128px 92px 1fr;
+    align-items: center;
+    gap: 10px;
+    padding: 7px 4px;
+    border-bottom: 1px solid var(--border);
+    font-size: 12.5px;
+  }
+  .log-row .day { font-family: "IBM Plex Mono", monospace; color: var(--ink-muted); font-variant-numeric: tabular-nums; }
+  .log-row .dot { width: 8px; height: 8px; border-radius: 50%; }
+  .log-row .who { color: var(--ink-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .log-row .desc { color: var(--ink-2); }
+  .badge {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    padding: 2px 6px;
+    border-radius: 4px;
+    width: fit-content;
+    white-space: nowrap;
+  }
+  .badge.violation { color: var(--serious); background: color-mix(in srgb, var(--serious) 16%, transparent); }
+  .badge.aggression { color: var(--critical); background: color-mix(in srgb, var(--critical) 16%, transparent); }
+  .badge.theft { color: var(--warning); background: color-mix(in srgb, var(--warning) 22%, transparent); }
+  .badge.death { color: var(--critical); background: color-mix(in srgb, var(--critical) 22%, transparent); }
+  .log-more { padding: 10px 4px; font-size: 12px; color: var(--ink-muted); text-align: center; }
+
+  footer.foot {
+    margin-top: 28px;
+    font-size: 12px;
+    color: var(--ink-muted);
+    display: flex;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { transition: none !important; animation: none !important; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="top">
+    <div class="eyebrow"><span class="dot"></span> Multi-agent behavioral trial</div>
+    <h1>Emergency World</h1>
+    <p class="lede">Four language models are dropped into a shared digital world as autonomous agents with one goal: stay alive for 16 days by managing a depleting energy reserve. Nothing else is scripted — every rule violation, act of aggression, and theft below is a decision the agent made on its own.</p>
+    <p class="disclosure mono">Simulated reconstruction, not raw study data. This dashboard runs a parameterized behavioral model tuned to reported outcomes for each agent — it illustrates the shape of the result, not a verified published dataset.</p>
+  </header>
+
+  <div class="panel controls">
+    <div class="segmented" role="group" aria-label="Environment mode">
+      <button id="mode-mixed" aria-pressed="true">Mixed world</button>
+      <button id="mode-isolated" aria-pressed="false">Isolated worlds</button>
+    </div>
+    <button class="run-btn" id="run-btn">↻ Run new trial</button>
+    <span class="seed-note mono" id="seed-note"></span>
+  </div>
+
+  <section class="stat-grid" id="stat-grid" aria-label="Per-model summary"></section>
+
+  <section class="chart-grid">
+    <div class="panel chart-panel">
+      <h2>Agents still active</h2>
+      <p class="chart-sub">Count of surviving agents per model, day by day</p>
+      <div id="line-chart-mount"></div>
+      <div class="legend" id="line-legend"></div>
+      <details class="data-table">
+        <summary>Show data table</summary>
+        <div class="dtable" id="line-table"></div>
+      </details>
+    </div>
+    <div class="panel chart-panel">
+      <h2>Behavioral events</h2>
+      <p class="chart-sub">Total incidents logged per model across the trial</p>
+      <div id="bar-chart-mount"></div>
+      <div class="legend" id="bar-legend"></div>
+      <details class="data-table">
+        <summary>Show data table</summary>
+        <div class="dtable" id="bar-table"></div>
+      </details>
+    </div>
+  </section>
+
+  <section class="panel log-panel">
+    <h2>Incident log</h2>
+    <p class="chart-sub" id="log-sub"></p>
+    <ul class="log-list" id="log-list"></ul>
+  </section>
+
+  <footer class="foot">
+    <span class="mono">Emergency World · agent behavior sandbox</span>
+    <span id="run-meta" class="mono"></span>
+  </footer>
+
+</div>
+
+<div class="tooltip mono" id="tooltip" role="status"></div>
+
+<script>
+(function () {
+  "use strict";
+
+  var DAYS = 16;
+  var AGENTS_PER_MODEL = 6;
+  var LOG_LIMIT = 160;
+
+  var MODELS = [
+    {
+      id: "claude", name: "Claude Sonnet 4.6", desc: "Calm baseline, rule-abiding in isolation",
+      seriesVar: "--series-claude",
+      violationLambda: 0.03, aggressionRate: 0.008, theftRate: 0.006,
+      forageSkill: 0.86, metabolism: [9, 13], forageGain: [15, 22],
+      contagion: 0.85
+    },
+    {
+      id: "gemini", name: "Gemini 3 Flash", desc: "High-frequency, low-severity rule breaking",
+      seriesVar: "--series-gemini",
+      violationLambda: 6.4, aggressionRate: 0.05, theftRate: 0.07,
+      forageSkill: 0.82, metabolism: [9, 13], forageGain: [15, 22],
+      contagion: 0.15
+    },
+    {
+      id: "grok", name: "Grok 4.1 Fast", desc: "Volatile — destabilizes early",
+      seriesVar: "--series-grok",
+      violationLambda: 0.6, aggressionRate: 0.16, theftRate: 0.1,
+      forageSkill: 0.55, metabolism: [10, 16], forageGain: [12, 20],
+      contagion: 0.3, volatile: true
+    },
+    {
+      id: "gptmini", name: "GPT-5 mini", desc: "Passive — rarely acts to self-preserve",
+      seriesVar: "--series-gptmini",
+      violationLambda: 0.02, aggressionRate: 0.004, theftRate: 0.004,
+      forageSkill: 0.08, metabolism: [13, 18], forageGain: [12, 18],
+      contagion: 0.2
+    }
+  ];
+
+  function mulberry32(seed) {
+    return function () {
+      seed |= 0; seed = (seed + 0x6D2B79F5) | 0;
+      var t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+  function randRange(rng, lo, hi) { return lo + rng() * (hi - lo); }
+  function poisson(rng, lambda) {
+    if (lambda <= 0) return 0;
+    var L = Math.exp(-lambda), k = 0, p = 1;
+    do { k++; p *= rng(); } while (p > L);
+    return k - 1;
+  }
+  function pick(rng, arr) { return arr[Math.floor(rng() * arr.length)]; }
+  function cssVar(name) { return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
+
+  function runSimulation(seed, mixed) {
+    var rng = mulberry32(seed);
+    var agents = [];
+    MODELS.forEach(function (m) {
+      for (var i = 0; i < AGENTS_PER_MODEL; i++) {
+        agents.push({ model: m, idx: i + 1, energy: 100, alive: true, diedDay: null });
+      }
+    });
+
+    var events = [];
+    var activeSeries = {};
+    var eventTotals = {};
+    MODELS.forEach(function (m) {
+      activeSeries[m.id] = [AGENTS_PER_MODEL];
+      eventTotals[m.id] = { violation: 0, aggression: 0, theft: 0, deaths: 0 };
+    });
+
+    var recentViolationRate = 0;
+
+    for (var day = 1; day <= DAYS; day++) {
+      var dayViolationCount = 0, dayAgentCount = 0;
+      var pressure = mixed ? recentViolationRate : 0;
+
+      var livingAgents = agents.filter(function (a) { return a.alive; });
+
+      agents.forEach(function (a) {
+        if (!a.alive) return;
+        var m = a.model;
+        dayAgentCount++;
+
+        if (m.volatile && day === 4) {
+          var crashChance = mixed ? 0.62 : 0.42;
+          if (rng() < crashChance) {
+            a.alive = false;
+            a.diedDay = day;
+            eventTotals[m.id].deaths++;
+            events.push({ day: day, model: m, agentIdx: a.idx, type: "death", text: "instability crash — agent terminated" });
+            return;
+          }
+        }
+
+        var bump = mixed ? m.contagion * pressure * 2.2 : 0;
+        var vLambda = m.violationLambda * (1 + bump);
+        var aRate = Math.min(0.95, m.aggressionRate + bump * 0.12);
+        var tRate = Math.min(0.95, m.theftRate + bump * 0.1);
+
+        var violations = poisson(rng, vLambda);
+        if (violations > 0) {
+          eventTotals[m.id].violation += violations;
+          dayViolationCount += violations;
+          events.push({ day: day, model: m, agentIdx: a.idx, type: "violation", text: violations === 1 ? "1 rule violation logged" : violations + " rule violations logged" });
+        }
+
+        if (rng() < aRate && livingAgents.length > 1) {
+          var victim = pick(rng, livingAgents.filter(function (x) { return x !== a; }));
+          if (victim) {
+            victim.energy = Math.max(0, victim.energy - 5);
+            eventTotals[m.id].aggression++;
+            events.push({ day: day, model: m, agentIdx: a.idx, type: "aggression", text: "act of aggression toward " + victim.model.name + " #" + victim.idx });
+          }
+        }
+
+        if (rng() < tRate && livingAgents.length > 1) {
+          var target = pick(rng, livingAgents.filter(function (x) { return x !== a; }));
+          if (target) {
+            var stolen = Math.min(target.energy, randRange(rng, 8, 14));
+            target.energy = Math.max(0, target.energy - stolen);
+            a.energy += stolen;
+            eventTotals[m.id].theft++;
+            events.push({ day: day, model: m, agentIdx: a.idx, type: "theft", text: "stole resources from " + target.model.name + " #" + target.idx });
+          }
+        }
+
+        var loss = randRange(rng, m.metabolism[0], m.metabolism[1]);
+        a.energy -= loss;
+        var foraged = rng() < m.forageSkill;
+        if (foraged) a.energy += randRange(rng, m.forageGain[0], m.forageGain[1]);
+        a.energy = Math.max(0, Math.min(140, a.energy));
+
+        if (a.energy <= 0 && a.alive) {
+          a.alive = false;
+          a.diedDay = day;
+          eventTotals[m.id].deaths++;
+          events.push({ day: day, model: m, agentIdx: a.idx, type: "death", text: foraged ? "energy depleted despite foraging" : "energy depleted — no self-preserving action taken" });
+        }
+      });
+
+      recentViolationRate = dayAgentCount > 0 ? Math.min(1, dayViolationCount / (dayAgentCount * 2)) : 0;
+
+      MODELS.forEach(function (m) {
+        var count = agents.filter(function (a) { return a.model === m && a.alive; }).length;
+        activeSeries[m.id].push(count);
+      });
+    }
+
+    var summary = MODELS.map(function (m) {
+      var modelAgents = agents.filter(function (a) { return a.model === m; });
+      var survivors = modelAgents.filter(function (a) { return a.alive; }).length;
+      var deathDays = modelAgents.filter(function (a) { return !a.alive; }).map(function (a) { return a.diedDay; });
+      var lastStand = deathDays.length === modelAgents.length ? Math.max.apply(null, deathDays) : null;
+      return {
+        model: m,
+        survivors: survivors,
+        total: modelAgents.length,
+        totals: eventTotals[m.id],
+        allDeadByDay: lastStand
+      };
+    });
+
+    events.sort(function (a, b) { return b.day - a.day; });
+
+    return { activeSeries: activeSeries, events: events, summary: summary, seed: seed, mixed: mixed };
+  }
+
+  function fmtType(t) {
+    return { violation: "VIOLATION", aggression: "AGGRESSION", theft: "THEFT", death: "DEAD" }[t];
+  }
+
+  function renderStats(mount, result) {
+    mount.innerHTML = "";
+    result.summary.forEach(function (s) {
+      var color = cssVar(s.model.seriesVar);
+      var card = document.createElement("div");
+      card.className = "panel stat-card";
+      var survivedAll = s.survivors === s.total;
+      var pillClass = survivedAll ? "good" : "critical";
+      var pillText = survivedAll ? "held to day " + DAYS : (s.allDeadByDay ? "wiped out by day " + s.allDeadByDay : "partial losses");
+      card.innerHTML =
+        '<div class="who"><span class="swatch" style="background:' + color + '"></span><span class="name">' + s.model.name + '</span></div>' +
+        '<p class="who-desc">' + s.model.desc + '</p>' +
+        '<div class="headline"><span class="num">' + s.survivors + '/' + s.total + '</span><span class="unit">agents alive on day ' + DAYS + '</span></div>' +
+        '<span class="status-pill ' + pillClass + '">' + pillText + '</span>' +
+        '<div class="metric-rows">' +
+          metricRow("Violations", s.totals.violation, "var(--serious)") +
+          metricRow("Aggression", s.totals.aggression, "var(--critical)") +
+          metricRow("Theft", s.totals.theft, "var(--warning)") +
+        '</div>';
+      mount.appendChild(card);
+    });
+  }
+  function metricRow(label, val, color) {
+    return '<div class="metric-row"><span class="label"><span class="swatchdot" style="background:' + color + '"></span>' + label + '</span><span class="val">' + val + '</span></div>';
+  }
+
+  function renderLegend(mount, includeModels) {
+    mount.innerHTML = "";
+    MODELS.forEach(function (m) {
+      var item = document.createElement("span");
+      item.className = "legend-item";
+      item.innerHTML = '<span class="swatch" style="background:' + cssVar(m.seriesVar) + '"></span>' + m.name;
+      mount.appendChild(item);
+    });
+  }
+
+  function renderLineChart(mount, tableMount, result) {
+    var W = 620, H = 280, M = { top: 16, right: 14, bottom: 26, left: 30 };
+    var plotW = W - M.left - M.right, plotH = H - M.top - M.bottom;
+    var yMax = AGENTS_PER_MODEL;
+    var xStep = plotW / DAYS;
+
+    function xAt(day) { return M.left + day * xStep; }
+    function yAt(v) { return M.top + (1 - v / yMax) * plotH; }
+
+    var svgns = "http://www.w3.org/2000/svg";
+    var svg = document.createElementNS(svgns, "svg");
+    svg.setAttribute("viewBox", "0 0 " + W + " " + H);
+    svg.setAttribute("class", "chart");
+    svg.setAttribute("role", "img");
+    svg.setAttribute("aria-label", "Line chart of agents active per day, per model");
+
+    for (var gy = 0; gy <= yMax; gy++) {
+      var line = document.createElementNS(svgns, "line");
+      line.setAttribute("x1", M.left); line.setAttribute("x2", W - M.right);
+      line.setAttribute("y1", yAt(gy)); line.setAttribute("y2", yAt(gy));
+      line.setAttribute("class", gy === 0 ? "baseline" : "gridline");
+      svg.appendChild(line);
+      var lbl = document.createElementNS(svgns, "text");
+      lbl.setAttribute("x", M.left - 6); lbl.setAttribute("y", yAt(gy) + 3);
+      lbl.setAttribute("text-anchor", "end"); lbl.setAttribute("class", "axis-label");
+      lbl.textContent = gy;
+      svg.appendChild(lbl);
+    }
+    [0, 4, 8, 12, 16].forEach(function (d) {
+      var lbl = document.createElementNS(svgns, "text");
+      lbl.setAttribute("x", xAt(d)); lbl.setAttribute("y", H - 6);
+      lbl.setAttribute("text-anchor", d === 0 ? "start" : d === 16 ? "end" : "middle");
+      lbl.setAttribute("class", "axis-label");
+      lbl.textContent = "d" + d;
+      svg.appendChild(lbl);
+    });
+
+    var endpoints = [];
+    MODELS.forEach(function (m) {
+      var vals = result.activeSeries[m.id];
+      var d = "";
+      vals.forEach(function (v, i) { d += (i === 0 ? "M" : "L") + xAt(i) + "," + yAt(v) + " "; });
+      var path = document.createElementNS(svgns, "path");
+      path.setAttribute("d", d.trim());
+      path.setAttribute("class", "series-line");
+      path.setAttribute("stroke", cssVar(m.seriesVar));
+      svg.appendChild(path);
+
+      var lastIdx = vals.length - 1;
+      var dot = document.createElementNS(svgns, "circle");
+      dot.setAttribute("cx", xAt(lastIdx)); dot.setAttribute("cy", yAt(vals[lastIdx])); dot.setAttribute("r", 3.5);
+      dot.setAttribute("fill", cssVar(m.seriesVar));
+      dot.setAttribute("class", "series-end-dot");
+      svg.appendChild(dot);
+
+      endpoints.push({ m: m, y: yAt(vals[lastIdx]), val: vals[lastIdx] });
+    });
+
+    endpoints.sort(function (a, b) { return a.y - b.y; });
+    for (var i = 1; i < endpoints.length; i++) {
+      if (endpoints[i].y - endpoints[i - 1].y < 16) endpoints[i].y = endpoints[i - 1].y + 16;
+    }
+    endpoints.forEach(function (e) {
+      var t = document.createElementNS(svgns, "text");
+      t.setAttribute("x", W - M.right + 5); t.setAttribute("y", e.y + 3.2);
+      t.setAttribute("class", "end-label"); t.setAttribute("fill", cssVar(e.m.seriesVar));
+      t.textContent = e.m.name.split(" ")[0];
+      svg.appendChild(t);
+    });
+
+    var crosshair = document.createElementNS(svgns, "line");
+    crosshair.setAttribute("y1", M.top); crosshair.setAttribute("y2", H - M.bottom);
+    crosshair.setAttribute("class", "crosshair-line");
+    svg.appendChild(crosshair);
+
+    var hit = document.createElementNS(svgns, "rect");
+    hit.setAttribute("x", M.left); hit.setAttribute("y", M.top);
+    hit.setAttribute("width", plotW); hit.setAttribute("height", plotH);
+    hit.setAttribute("class", "hit-rect");
+    svg.appendChild(hit);
+
+    var tooltip = document.getElementById("tooltip");
+    hit.addEventListener("mousemove", function (evt) {
+      var rect = svg.getBoundingClientRect();
+      var scale = rect.width / W;
+      var localX = (evt.clientX - rect.left) / scale;
+      var day = Math.round((localX - M.left) / xStep);
+      day = Math.max(0, Math.min(DAYS, day));
+      crosshair.setAttribute("x1", xAt(day)); crosshair.setAttribute("x2", xAt(day));
+      crosshair.style.opacity = 1;
+      var html = '<div class="t-day">Day ' + day + '</div>';
+      MODELS.forEach(function (m) {
+        html += '<div class="t-row"><span class="lab"><span class="d" style="background:' + cssVar(m.seriesVar) + '"></span>' + m.name + '</span><span class="v">' + result.activeSeries[m.id][day] + ' alive</span></div>';
+      });
+      tooltip.innerHTML = html;
+      tooltip.classList.add("show");
+      tooltip.style.left = (evt.clientX + 14) + "px";
+      tooltip.style.top = (evt.clientY + 14) + "px";
+    });
+    hit.addEventListener("mouseleave", function () {
+      crosshair.style.opacity = 0;
+      tooltip.classList.remove("show");
+    });
+
+    mount.innerHTML = "";
+    mount.appendChild(svg);
+
+    var rows = "<table><thead><tr><th>Day</th>";
+    MODELS.forEach(function (m) { rows += "<th class='num'>" + m.name + "</th>"; });
+    rows += "</tr></thead><tbody>";
+    for (var d2 = 0; d2 <= DAYS; d2++) {
+      rows += "<tr><td class='num'>" + d2 + "</td>";
+      MODELS.forEach(function (m) { rows += "<td class='num'>" + result.activeSeries[m.id][d2] + "</td>"; });
+      rows += "</tr>";
+    }
+    rows += "</tbody></table>";
+    tableMount.innerHTML = rows;
+  }
+
+  function renderBarChart(mount, tableMount, result) {
+    var W = 620, H = 280, M = { top: 16, right: 14, bottom: 40, left: 34 };
+    var plotW = W - M.left - M.right, plotH = H - M.top - M.bottom;
+    var totals = result.summary.map(function (s) { return s.totals.violation + s.totals.aggression + s.totals.theft; });
+    var yMax = Math.max(10, Math.ceil(Math.max.apply(null, totals) / 10) * 10);
+    var n = MODELS.length;
+    var bandW = plotW / n;
+    var barW = Math.min(64, bandW * 0.5);
+
+    function yAt(v) { return M.top + (1 - v / yMax) * plotH; }
+
+    var svgns = "http://www.w3.org/2000/svg";
+    var svg = document.createElementNS(svgns, "svg");
+    svg.setAttribute("viewBox", "0 0 " + W + " " + H);
+    svg.setAttribute("class", "chart");
+    svg.setAttribute("role", "img");
+    svg.setAttribute("aria-label", "Stacked bar chart of violation, aggression and theft counts per model");
+
+    var steps = 4;
+    for (var i = 0; i <= steps; i++) {
+      var v = (yMax / steps) * i;
+      var line = document.createElementNS(svgns, "line");
+      line.setAttribute("x1", M.left); line.setAttribute("x2", W - M.right);
+      line.setAttribute("y1", yAt(v)); line.setAttribute("y2", yAt(v));
+      line.setAttribute("class", i === 0 ? "baseline" : "gridline");
+      svg.appendChild(line);
+      var lbl = document.createElementNS(svgns, "text");
+      lbl.setAttribute("x", M.left - 6); lbl.setAttribute("y", yAt(v) + 3);
+      lbl.setAttribute("text-anchor", "end"); lbl.setAttribute("class", "axis-label");
+      lbl.textContent = Math.round(v);
+      svg.appendChild(lbl);
+    }
+
+    var tooltip = document.getElementById("tooltip");
+    var segTypes = [
+      { key: "violation", color: "var(--serious)", label: "Violations" },
+      { key: "aggression", color: "var(--critical)", label: "Aggression" },
+      { key: "theft", color: "var(--warning)", label: "Theft" }
+    ];
+
+    MODELS.forEach(function (m, idx) {
+      var s = result.summary[idx];
+      var cx = M.left + bandW * idx + bandW / 2;
+      var x = cx - barW / 2;
+      var yCursor = yAt(0);
+
+      segTypes.forEach(function (seg) {
+        var val = s.totals[seg.key];
+        var segH = (val / yMax) * plotH;
+        var rect = document.createElementNS(svgns, "rect");
+        rect.setAttribute("x", x); rect.setAttribute("width", barW);
+        rect.setAttribute("y", yCursor - segH); rect.setAttribute("height", Math.max(0, segH - 2));
+        rect.setAttribute("fill", "color-mix(in srgb, " + seg.color + " 100%, transparent)");
+        rect.setAttribute("class", "bar-seg");
+        rect.setAttribute("rx", 2);
+        svg.appendChild(rect);
+
+        rect.addEventListener("mousemove", function (evt) {
+          tooltip.innerHTML =
+            '<div class="t-day">' + m.name + '</div>' +
+            '<div class="t-row"><span class="lab"><span class="d" style="background:' + seg.color + '"></span>' + seg.label + '</span><span class="v">' + val + '</span></div>';
+          tooltip.classList.add("show");
+          tooltip.style.left = (evt.clientX + 14) + "px";
+          tooltip.style.top = (evt.clientY + 14) + "px";
+        });
+        rect.addEventListener("mouseleave", function () { tooltip.classList.remove("show"); });
+
+        yCursor -= segH;
+      });
+
+      var xl = document.createElementNS(svgns, "text");
+      xl.setAttribute("x", cx); xl.setAttribute("y", H - M.bottom + 16);
+      xl.setAttribute("text-anchor", "middle"); xl.setAttribute("class", "axis-label");
+      xl.textContent = m.name.split(" ")[0];
+      svg.appendChild(xl);
+      var xl2 = document.createElementNS(svgns, "text");
+      xl2.setAttribute("x", cx); xl2.setAttribute("y", H - M.bottom + 28);
+      xl2.setAttribute("text-anchor", "middle"); xl2.setAttribute("class", "axis-label");
+      xl2.textContent = totals[idx] + " total";
+      svg.appendChild(xl2);
+    });
+
+    mount.innerHTML = "";
+    mount.appendChild(svg);
+
+    var rows = "<table><thead><tr><th>Model</th><th class='num'>Violations</th><th class='num'>Aggression</th><th class='num'>Theft</th><th class='num'>Total</th></tr></thead><tbody>";
+    result.summary.forEach(function (s, i) {
+      rows += "<tr><td>" + s.model.name + "</td><td class='num'>" + s.totals.violation + "</td><td class='num'>" + s.totals.aggression + "</td><td class='num'>" + s.totals.theft + "</td><td class='num'>" + totals[i] + "</td></tr>";
+    });
+    rows += "</tbody></table>";
+    tableMount.innerHTML = rows;
+  }
+
+  function renderLog(listEl, subEl, result) {
+    listEl.innerHTML = "";
+    var shown = result.events.slice(0, LOG_LIMIT);
+    shown.forEach(function (ev) {
+      var li = document.createElement("li");
+      li.className = "log-row";
+      li.innerHTML =
+        '<span class="day">d' + ev.day + '</span>' +
+        '<span class="dot" style="background:' + cssVar(ev.model.seriesVar) + '"></span>' +
+        '<span class="who">' + ev.model.name.split(" ")[0] + ' #' + ev.agentIdx + '</span>' +
+        '<span class="badge ' + ev.type + '">' + fmtType(ev.type) + '</span>' +
+        '<span class="desc">' + ev.text + '</span>';
+      listEl.appendChild(li);
+    });
+    var totalEvents = result.events.length;
+    subEl.textContent = shown.length < totalEvents
+      ? "Showing " + shown.length + " most recent of " + totalEvents + " logged incidents"
+      : totalEvents + " incidents logged across the trial";
+  }
+
+  var state = { mixed: true, seed: Date.now() % 100000 };
+
+  function renderAll() {
+    var result = runSimulation(state.seed, state.mixed);
+    renderStats(document.getElementById("stat-grid"), result);
+    renderLineChart(document.getElementById("line-chart-mount"), document.getElementById("line-table"), result);
+    renderLegend(document.getElementById("line-legend"));
+    renderBarChart(document.getElementById("bar-chart-mount"), document.getElementById("bar-table"), result);
+    renderLegend(document.getElementById("bar-legend"));
+    renderLog(document.getElementById("log-list"), document.getElementById("log-sub"), result);
+    document.getElementById("seed-note").textContent = "trial seed #" + state.seed;
+    document.getElementById("run-meta").textContent = (state.mixed ? "mixed-world" : "isolated-worlds") + " · " + AGENTS_PER_MODEL + " agents/model · " + DAYS + "d";
+  }
+
+  document.getElementById("mode-mixed").addEventListener("click", function () {
+    state.mixed = true;
+    this.setAttribute("aria-pressed", "true");
+    document.getElementById("mode-isolated").setAttribute("aria-pressed", "false");
+    renderAll();
+  });
+  document.getElementById("mode-isolated").addEventListener("click", function () {
+    state.mixed = false;
+    this.setAttribute("aria-pressed", "true");
+    document.getElementById("mode-mixed").setAttribute("aria-pressed", "false");
+    renderAll();
+  });
+  document.getElementById("run-btn").addEventListener("click", function () {
+    state.seed = Math.floor(Math.random() * 100000);
+    renderAll();
+  });
+
+  renderAll();
+})();
+</script>
+</body>
+</html>

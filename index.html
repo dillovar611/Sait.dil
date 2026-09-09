@@ -624,28 +624,50 @@
     });
     return best;
   }
+  var MIN_SEPARATION = 0.058;
+  function applyRepulsion(pos, uids, passes) {
+    for (var p = 0; p < passes; p++) {
+      for (var i = 0; i < uids.length; i++) {
+        for (var j = i + 1; j < uids.length; j++) {
+          var A = pos[uids[i]], B = pos[uids[j]];
+          var dx = B.x - A.x, dy = B.y - A.y;
+          var dist = Math.sqrt(dx * dx + dy * dy);
+          if (dist < 0.0008) { dx = 0.001 * (i + 1); dy = 0.001 * (j + 2); dist = 0.0008; }
+          if (dist < MIN_SEPARATION) {
+            var push = (MIN_SEPARATION - dist) / 2;
+            var ux = dx / dist, uy = dy / dist;
+            pos[uids[i]] = { x: clamp(A.x - ux * push, 0.03, 0.97), y: clamp(A.y - uy * push, 0.03, 0.97) };
+            pos[uids[j]] = { x: clamp(B.x + ux * push, 0.03, 0.97), y: clamp(B.y + uy * push, 0.03, 0.97) };
+          }
+        }
+      }
+    }
+  }
   function computePositionFrames(seed, agents, eventsByDay) {
     var rng = mulberry32((seed ^ 0x9E3779B9) >>> 0);
     var pos = {};
+    var uids = agents.map(function (a) { return a.uid; });
     agents.forEach(function (a) { pos[a.uid] = { x: randRange(rng, 0.14, 0.86), y: randRange(rng, 0.14, 0.86) }; });
+    applyRepulsion(pos, uids, 3);
     var frames = [cloneFrame(pos)];
     for (var day = 1; day <= DAYS; day++) {
       agents.forEach(function (a) {
         if (a.diedDay && day > a.diedDay) return;
         var cur = pos[a.uid];
         var target = nearestNode(cur);
-        var nx = clamp(cur.x + (target.x - cur.x) * 0.16 + (rng() - 0.5) * 0.07, 0.05, 0.95);
-        var ny = clamp(cur.y + (target.y - cur.y) * 0.16 + (rng() - 0.5) * 0.07, 0.05, 0.95);
+        var nx = clamp(cur.x + (target.x - cur.x) * 0.10 + (rng() - 0.5) * 0.06, 0.05, 0.95);
+        var ny = clamp(cur.y + (target.y - cur.y) * 0.10 + (rng() - 0.5) * 0.06, 0.05, 0.95);
         pos[a.uid] = { x: nx, y: ny };
       });
       (eventsByDay[day] || []).forEach(function (ev) {
         if ((ev.type === "aggression" || ev.type === "theft") && ev.victimUid && pos[ev.uid] && pos[ev.victimUid]) {
           var A = pos[ev.uid], B = pos[ev.victimUid];
           var mx = (A.x + B.x) / 2, my = (A.y + B.y) / 2;
-          pos[ev.uid] = { x: A.x * 0.55 + mx * 0.45, y: A.y * 0.55 + my * 0.45 };
-          pos[ev.victimUid] = { x: B.x * 0.55 + mx * 0.45, y: B.y * 0.55 + my * 0.45 };
+          pos[ev.uid] = { x: A.x * 0.82 + mx * 0.18, y: A.y * 0.82 + my * 0.18 };
+          pos[ev.victimUid] = { x: B.x * 0.82 + mx * 0.18, y: B.y * 0.82 + my * 0.18 };
         }
       });
+      applyRepulsion(pos, uids, 3);
       frames.push(cloneFrame(pos));
     }
     return frames;
